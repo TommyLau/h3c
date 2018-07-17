@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "h3c.h"
+
 int main(int argc, char *argv[]) {
     printf("h3c v0.1.0 build 001 - A command line tool for H3C 802.1X authentication\n");
     printf("Copyright (c) 2018 Tommy Lau <tommy@gen-new.com>\n\n");
@@ -65,15 +67,19 @@ int main(int argc, char *argv[]) {
         }
     }
 
-#if NDEBUG
+    // Must run as root
     if (geteuid() != 0) {
         printf("You have to run this program as root.\n");
         exit(EXIT_FAILURE);
     }
-#endif
 
     if (interface == NULL)
         interface = "en0";
+
+#ifndef NDEBUG
+    fprintf(stdout, "h3c_init: %d\n", h3c_init(interface));
+    return EXIT_SUCCESS;
+#endif
 
     if (username == NULL) {
         fprintf(stderr, "Please input username.\n");
