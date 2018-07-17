@@ -77,15 +77,15 @@ int main(int argc, char *argv[]) {
         interface = "en0";
 
 #ifndef NDEBUG
-    macaddr_t mac = {0};
-    util_error_t ret = util_get_mac(interface, &mac);
-    if (ret == E_OK) {
+    struct ether_addr mac = {0};
+    int ret = util_get_mac(interface, &mac);
+    if (ret == UTIL_OK) {
         for (int i = 0; i < sizeof(mac); ++i) {
-            fprintf(stdout, "%02X ", mac[i]);
+            fprintf(stdout, "%02X ", mac.octet[i]);
         }
         fprintf(stdout, "\n");
         return EXIT_SUCCESS;
-    } else{
+    } else {
         fprintf(stdout, "Error: %d\n", ret);
         return EXIT_FAILURE;
     }
