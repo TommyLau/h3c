@@ -3,4 +3,4 @@ project(h3c C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(h3c h3c.c main.c)
+add_executable(h3c h3c.c utils.c main.c)

@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "h3c.h"
+#include "utils.h"
 
 int main(int argc, char *argv[]) {
     printf("h3c v0.1.0 build 001 - A command line tool for H3C 802.1X authentication\n");
@@ -77,6 +77,18 @@ int main(int argc, char *argv[]) {
         interface = "en0";
 
 #ifndef NDEBUG
+    macaddr_t mac = {0};
+    util_error_t ret = util_get_mac(interface, &mac);
+    if (ret == E_OK) {
+        for (int i = 0; i < sizeof(mac); ++i) {
+            fprintf(stdout, "%02X ", mac[i]);
+        }
+        fprintf(stdout, "\n");
+        return EXIT_SUCCESS;
+    } else{
+        fprintf(stdout, "Error: %d\n", ret);
+        return EXIT_FAILURE;
+    }
     fprintf(stdout, "h3c_init: %d\n", h3c_init(interface));
     return EXIT_SUCCESS;
 #endif
