@@ -20,20 +20,40 @@ const static uint8_t VERSION_INFO[32] = {
 // H3C context
 static h3c_context_t *h3c = NULL;
 
-// Callback functions
-static eapol_callback_t *callback = NULL;
-static int bpf_fd = 0;
-static struct timeval timeout = {0};
-static uint8_t *recv_buf = NULL;
-
 // Ethernet Interface
 static const char *interface = NULL;
 
 // MAC Address
 static struct ether_addr mac_addr = {0};
 
+// BPF Handler
+static int bpf_fd = 0;
 
-static int h3c_init_bpf() {
+// Buffer
+static uint8_t *send_buf = NULL;
+static uint8_t *recv_buf = NULL;
+
+// Timeout 30 seconds
+static struct timeval timeout = {30, 0};
+
+int h3c_init(h3c_context_t *hc) {
+    // Check parameters
+    if (hc == NULL || hc->interface == NULL || hc->username == NULL || hc->password == NULL)
+        return H3C_E_INVALID_PARAMETERS;
+
+    h3c = hc;
+
+    // Init interface and get MAC address
+    if (util_get_mac(interface = h3c->interface, &mac_addr) != UTIL_OK)
+        return H3C_E_INIT_INTERFACE;
+
+#if 0
+    for (int i = 0; i < ETHER_ADDR_LEN; ++i) {
+        printf("%02X ", mac_addr.octet[i]);
+    }
+    printf("\n");
+#endif
+
     char bpf_str[32] = {0};
     char bpf_path[FILENAME_MAX] = {0};
 
@@ -54,8 +74,6 @@ static int h3c_init_bpf() {
 
     struct ifreq ifr = {0};
     strncpy(ifr.ifr_name, interface, sizeof(ifr.ifr_name));
-    timeout.tv_sec = 30;
-    timeout.tv_usec = 0;
     const int ci_immediate = 1, cmplt = 1;
     size_t buf_len, set_buf_len = 128;
 
@@ -69,43 +87,17 @@ static int h3c_init_bpf() {
         return H3C_E_IOCTL;
     }
 
-    /*
     recv_buf = malloc(buf_len);
-    free(recv_buf);
-    */
-
-    close(bpf_fd);
-
-    return H3C_OK;
-}
-
-int h3c_init(h3c_context_t *hc) {
-    // Check parameters
-    if (hc == NULL || hc->interface == NULL || hc->username == NULL || hc->password == NULL)
-        return H3C_E_INVALID_PARAMETERS;
-
-    h3c = hc;
-
-    // Init interface and get MAC address
-    if (util_get_mac(interface = h3c->interface, &mac_addr) != UTIL_OK)
-        return H3C_E_INIT_INTERFACE;
-
-    // TODO: Init BPF
-    //h3c_init_bpf();
-
-#if 0
-    for (int i = 0; i < ETHER_ADDR_LEN; ++i) {
-        printf("%02X ", mac_addr.octet[i]);
-    }
-    printf("\n");
-#endif
 
     return H3C_OK;
 }
 
 int h3c_cleanup() {
-    // TODO: Implement clean up functions
     fprintf(stdout, "Clean up . . .\n");
+
+    free(recv_buf);
+    close(bpf_fd);
+
     return H3C_OK;
 }
 
