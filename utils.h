@@ -5,9 +5,10 @@
 
 enum {
     UTIL_OK = 0,
-    UTIL_NAME_TO_INDEX_FAIL,
-    UTIL_SYSCTL_ERROR_1,
-    UTIL_SYSCTL_ERROR_2
+    UTIL_E_INTERFACE_LENGTH,
+    UTIL_E_NAME_TO_INDEX,
+    UTIL_E_SYSCTL_1,
+    UTIL_E_SYSCTL_2
 };
 
 int util_get_mac(const char *interface, struct ether_addr *macaddr);

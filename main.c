@@ -4,11 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "h3c.h"
-#include "utils.h"
 
 int main(int argc, char *argv[]) {
-    printf("h3c v0.1.0 build 001 - A command line tool for H3C 802.1X authentication\n");
-    printf("Copyright (c) 2018 Tommy Lau <tommy@gen-new.com>\n\n");
+    fprintf(stdout, "h3c v0.1.0 build 001 - A command line tool for H3C 802.1X authentication\n");
+    fprintf(stdout, "Copyright (c) 2018 Tommy Lau <tommy@gen-new.com>\n\n");
 
     static struct option options[] = {
             {"help",      no_argument,       NULL, 'h'},
@@ -28,7 +27,7 @@ int main(int argc, char *argv[]) {
     while ((c = getopt_long(argc, argv, "hu:p:i:m:", options, NULL)) != -1) {
         switch (c) {
             case 'h':
-                printf(
+                fprintf(stdout,
                         "Usage: h3c [options]\n"
                         "-h, --help          This help text\n"
                         "-i, --interface     Network interface (Default: en0)\n"
@@ -69,29 +68,12 @@ int main(int argc, char *argv[]) {
 
     // Must run as root
     if (geteuid() != 0) {
-        printf("You have to run this program as root.\n");
+        fprintf(stderr, "You have to run this program as root.\n");
         exit(EXIT_FAILURE);
     }
 
     if (interface == NULL)
         interface = "en0";
-
-#ifndef NDEBUG
-    struct ether_addr mac = {0};
-    int ret = util_get_mac(interface, &mac);
-    if (ret == UTIL_OK) {
-        for (int i = 0; i < sizeof(mac); ++i) {
-            fprintf(stdout, "%02X ", mac.octet[i]);
-        }
-        fprintf(stdout, "\n");
-        return EXIT_SUCCESS;
-    } else {
-        fprintf(stdout, "Error: %d\n", ret);
-        return EXIT_FAILURE;
-    }
-    fprintf(stdout, "h3c_init: %d\n", h3c_init(interface));
-    return EXIT_SUCCESS;
-#endif
 
     if (username == NULL) {
         fprintf(stderr, "Please input username.\n");
@@ -107,8 +89,19 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
+#if 0
     fprintf(stdout, "Username '%s' with password '%s', interface: %s, md5: %d\n",
             username, password, interface, md5);
+#endif
+
+    h3c_context_t hc = {interface, username, password, NULL};
+
+    if (h3c_init(&hc) != H3C_OK) {
+        fprintf(stderr, "Ethernet interface initialize fail.\n");
+        return EXIT_FAILURE;
+    }
+
+    h3c_run();
 
     return EXIT_SUCCESS;
 }

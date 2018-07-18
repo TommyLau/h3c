@@ -6,28 +6,32 @@
 #include "utils.h"
 
 int util_get_mac(const char *interface, struct ether_addr *macaddr) {
-    int index;
+    size_t length = strlen(interface);
 
-    if ((index = if_nametoindex(interface)) == 0)
-        return UTIL_NAME_TO_INDEX_FAIL;
+    if (length < 1 || length > IFNAMSIZ)
+        return UTIL_E_INTERFACE_LENGTH;
 
-    size_t len;
+    int index = if_nametoindex(interface);
+
+    if (index == 0)
+        return UTIL_E_NAME_TO_INDEX;
+
     int mib[6] = {CTL_NET, AF_ROUTE, 0, AF_LINK, NET_RT_IFLIST, index};
 
-    if (sysctl(mib, 6, NULL, &len, NULL, 0) < 0)
-        return UTIL_SYSCTL_ERROR_1;
+    if (sysctl(mib, 6, NULL, &length, NULL, 0) < 0)
+        return UTIL_E_SYSCTL_1;
 
-    char *buf = malloc(len);
+    char *buf = malloc(length);
 
-    if (sysctl(mib, 6, buf, &len, NULL, 0) < 0) {
+    if (sysctl(mib, 6, buf, &length, NULL, 0) < 0) {
         free(buf);
-        return UTIL_SYSCTL_ERROR_2;
+        return UTIL_E_SYSCTL_2;
     }
 
     struct if_msghdr *ifm = (struct if_msghdr *) buf;
     struct sockaddr_dl *sdl = (struct sockaddr_dl *) (ifm + 1);
     unsigned char *ptr = (unsigned char *) LLADDR(sdl);
-    memcpy(macaddr->octet, ptr, sizeof(struct ether_addr));
+    memcpy(macaddr, ptr, sizeof(struct ether_addr));
     free(buf);
 
     return UTIL_OK;

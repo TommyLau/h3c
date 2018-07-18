@@ -75,3 +75,15 @@ struct eapol_packet {
 typedef struct eapol_header eapol_header_t;
 typedef struct eap_header eap_header_t;
 typedef struct eapol_packet eapol_packet_t;
+
+typedef int (*eapol_callback_func_t)();
+
+struct eapol_callback {
+    eapol_callback_func_t success;
+    eapol_callback_func_t failure;
+    eapol_callback_func_t eap;
+    eapol_callback_func_t response;
+    eapol_callback_func_t unknown;
+};
+
+typedef struct eapol_callback eapol_callback_t;
