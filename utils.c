@@ -5,7 +5,7 @@
 #include <string.h>
 #include "utils.h"
 
-int util_get_mac(const char *interface, struct ether_addr *macaddr) {
+int util_get_mac(const char *interface, u_char *macaddr) {
     size_t length = strlen(interface);
 
     if (length < 1 || length > IFNAMSIZ)

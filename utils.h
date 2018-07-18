@@ -11,4 +11,4 @@ enum {
     UTIL_E_SYSCTL_2
 };
 
-int util_get_mac(const char *interface, struct ether_addr *macaddr);
+int util_get_mac(const char *interface, u_char *macaddr);

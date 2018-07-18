@@ -1,33 +1,148 @@
+#include <net/bpf.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include "eapol.h"
+#include "utils.h"
 
 #define EAPOL_VERSION 1
-//ETHERTYPE_PAE
 
-static const uint8_t pae_group_addr[ETHER_ADDR_LEN] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x03};
+static const uint8_t PAE_GROUP_ADDR[ETHER_ADDR_LEN] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x03};
 
-static uint8_t send_buf[ETHER_MAX_LEN] = {0};
-static uint8_t recv_buf[ETHER_MAX_LEN] = {0};
+// The ethernet header for EAPoL
+static ether_hdr_t eth_hdr = {0};
 
-inline void eapol_header(uint8_t type, uint16_t length) {
-    eapol_packet_t *p = (eapol_packet_t *) send_buf;
-    p->eapol_header.version = EAPOL_VERSION;
-    p->eapol_header.type = type;
-    p->eapol_header.length = length;
+// BPF Handler
+static int bpf_fd = 0;
+
+// Timeout 30 seconds
+static struct timeval timeout = {30, 0};
+
+// Buffer
+static uint8_t *send_buf = NULL;
+static uint8_t *recv_buf = NULL;
+static size_t buf_len = BPF_MAXBUFSIZE;
+
+int eapol_init(const char *interface) {
+    // Init interface and get MAC address
+    if (util_get_mac(interface, eth_hdr.ether_shost) != UTIL_OK)
+        return EAPOL_E_INIT_INTERFACE;
+
+    char bpf_str[32] = {0};
+    char bpf_path[FILENAME_MAX] = {0};
+
+    FILE *fp = popen("sysctl debug.bpf_maxdevices", "r");
+    fgets(bpf_str, sizeof(bpf_str), fp);
+    int bpf_num = atoi(bpf_str + 22);
+    fclose(fp);
+
+    for (int i = 0; i < bpf_num; i++) {
+        sprintf(bpf_path, "/dev/bpf%d", i);
+
+        if ((bpf_fd = open(bpf_path, O_RDWR)) >= 0)
+            break;
+
+        if (i == bpf_num - 1)
+            return EAPOL_E_BPF_OPEN;
+    }
+
+    struct ifreq ifr = {0};
+    strncpy(ifr.ifr_name, interface, sizeof(ifr.ifr_name));
+    u_int flag = 1;
+
+    if (ioctl(bpf_fd, BIOCGBLEN, &buf_len) < 0 // Get read buffer length
+        || ioctl(bpf_fd, BIOCSBLEN, &buf_len) < 0 // Set read buffer length
+        || ioctl(bpf_fd, BIOCSETIF, &ifr) < 0 // Set bpf interface
+        || ioctl(bpf_fd, BIOCIMMEDIATE, &flag) < 0 // Enable immediate mode
+        || ioctl(bpf_fd, BIOCSHDRCMPLT, &flag) < 0 // Set header complete to 1 (not auto)
+        || ioctl(bpf_fd, BIOCSRTIMEOUT, &timeout) < 0) // Time out setting
+    {
+        close(bpf_fd);
+        return EAPOL_E_IOCTL;
+    }
+
+    if ((send_buf = malloc(buf_len)) == NULL)
+        return EAPOL_E_MALLOC;
+
+    if ((recv_buf = malloc(buf_len)) == NULL) {
+        free(send_buf);
+        return EAPOL_E_MALLOC;
+    }
+
+    // Setup the EAPoL request header with source MAC address and PAE group address
+    memcpy(eth_hdr.ether_dhost, PAE_GROUP_ADDR, sizeof(struct ether_addr));
+    eth_hdr.ether_type = htons(ETHERTYPE_PAE);
+
+    return EAPOL_OK;
 }
 
-inline void eap_header(uint8_t code, uint8_t id, uint16_t length) {
-    eapol_packet_t *p = (eapol_packet_t *) send_buf;
-    p->eap_header.code = code;
-    p->eap_header.id = id;
-    p->eap_header.length = length;
+void eapol_cleanup() {
+    free(recv_buf);
+    free(send_buf);
 }
 
-inline int eapol_send(uint16_t length) {
-    // TODO: Send data
-    return EAPOL_E_OK;
+int eapol_send(int length) {
+    // Manually set the ethernet header
+    memcpy(send_buf, &eth_hdr, sizeof(ether_hdr_t));
+
+    if (write(bpf_fd, send_buf, length) == -1) {
+        return EAPOL_E_SEND;
+    }
+
+    return EAPOL_OK;
 }
 
-inline int eapol_recv(uint16_t length) {
-    // TODO: Receive data
-    return EAPOL_E_OK;
+int eapol_recv(int length) {
+    fd_set readset;
+    FD_ZERO(&readset);
+    FD_SET(bpf_fd, &readset);
+    ioctl(bpf_fd, BIOCFLUSH);
+
+    if (select(bpf_fd + 1, &readset, NULL, NULL, &timeout) != 1)
+        return EAPOL_E_RECV;
+
+    if (read(bpf_fd, recv_buf, length) == -1)
+        return EAPOL_E_RECV;
+
+    return EAPOL_OK;
+}
+
+void eapol_header(uint8_t type, uint16_t length) {
+    eapol_pkt_t *p = (eapol_pkt_t *) send_buf;
+    p->eapol_hdr.version = EAPOL_VERSION;
+    p->eapol_hdr.type = type;
+    p->eapol_hdr.length = length;
+}
+
+void eap_header(uint8_t code, uint8_t id, uint16_t length) {
+    eapol_pkt_t *p = (eapol_pkt_t *) send_buf;
+    p->eap_hdr.code = code;
+    p->eap_hdr.id = id;
+    p->eap_hdr.length = length;
+}
+
+int eapol_dispatcher() {
+    if (eapol_recv(buf_len) != EAPOL_OK)
+        return EAPOL_E_RECV;
+
+    eapol_pkt_t *p = (eapol_pkt_t *) (recv_buf + ((struct bpf_hdr *) recv_buf)->bh_hdrlen);
+
+    fprintf(stdout, "Dest: [%s], Ether type: %04x\n", ether_ntoa((struct ether_addr *) p->eth_hdr.ether_dhost),
+            ntohs(p->eth_hdr.ether_type));
+
+    if (ntohs(p->eth_hdr.ether_type) != ETHERTYPE_PAE
+        || memcmp(p->eth_hdr.ether_dhost, eth_hdr.ether_shost, sizeof(struct ether_addr)) != 0) {
+        // Ignore non EAPoL ethernet type
+        return EAPOL_OK;
+    }
+
+    fprintf(stdout, "----- OK -----: [%s], Ether type: %04X\n",
+            ether_ntoa((struct ether_addr *) p->eth_hdr.ether_dhost),
+            ntohs(p->eth_hdr.ether_type));
+
+    return EAPOL_OK;
 }

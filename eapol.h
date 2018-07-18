@@ -51,39 +51,60 @@ enum {
 };
 
 enum {
-    EAPOL_E_OK = 0
+    EAPOL_OK = 0,
+    EAPOL_E_INIT_INTERFACE,
+    EAPOL_E_BPF_OPEN,
+    EAPOL_E_IOCTL,
+    EAPOL_E_MALLOC,
+    EAPOL_E_SEND,
+    EAPOL_E_RECV
 };
 
-struct eapol_header {
+struct eapol_hdr {
     uint8_t version;
     uint8_t type;
     uint16_t length;
 }__attribute__ ((packed));
 
-struct eap_header {
+struct eap_hdr {
     uint8_t code;
     uint8_t id;
     uint16_t length;
 }__attribute__ ((packed));
 
-struct eapol_packet {
-    struct ether_header eth_header;
-    struct eapol_header eapol_header;
-    struct eap_header eap_header;
+struct eapol_pkt {
+    struct ether_header eth_hdr;
+    struct eapol_hdr eapol_hdr;
+    struct eap_hdr eap_hdr;
 }__attribute__ ((packed));
 
-typedef struct eapol_header eapol_header_t;
-typedef struct eap_header eap_header_t;
-typedef struct eapol_packet eapol_packet_t;
+typedef struct ether_header ether_hdr_t;
+typedef struct eapol_hdr eapol_hdr_t;
+typedef struct eap_hdr eap_hdr_t;
+typedef struct eapol_pkt eapol_pkt_t;
 
-typedef int (*eapol_callback_func_t)();
+typedef int (*eapol_cb_t)();
 
 struct eapol_callback {
-    eapol_callback_func_t success;
-    eapol_callback_func_t failure;
-    eapol_callback_func_t eap;
-    eapol_callback_func_t response;
-    eapol_callback_func_t unknown;
+    eapol_cb_t success;
+    eapol_cb_t failure;
+    eapol_cb_t eap;
+    eapol_cb_t response;
+    eapol_cb_t unknown;
 };
 
 typedef struct eapol_callback eapol_callback_t;
+
+int eapol_init(const char *interface);
+
+void eapol_cleanup();
+
+int eapol_send(int length);
+
+int eapol_recv(int length);
+
+void eapol_header(uint8_t type, uint16_t length);
+
+void eap_header(uint8_t code, uint8_t id, uint16_t length);
+
+int eapol_dispatcher();
