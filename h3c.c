@@ -4,6 +4,7 @@
 #include <string.h>
 #include "eapol.h"
 #include "h3c.h"
+#include "md5.h"
 
 // H3C version information
 const static uint8_t VERSION_INFO[32] = {
@@ -18,10 +19,32 @@ static h3c_ctx_t *ctx = NULL;
 static eap_req_cb_t erc = {0};
 static eapol_ctx_t ec = {0};
 
-static int h3c_send_id(uint8_t *data, uint16_t *length) {
-    memcpy(data, VERSION_INFO, sizeof(VERSION_INFO));
-    memcpy(data + sizeof(VERSION_INFO), ctx->username, strlen(ctx->username));
+static int h3c_send_id(uint8_t *out, uint16_t *length) {
+    memcpy(out, VERSION_INFO, sizeof(VERSION_INFO));
+    memcpy(out + sizeof(VERSION_INFO), ctx->username, strlen(ctx->username));
     *length = sizeof(VERSION_INFO) + strlen(ctx->username);
+
+    return EAPOL_OK;
+}
+
+static int h3c_send_md5(uint8_t id, uint8_t *in, uint8_t *out, uint16_t *length) {
+    // MD5(id + password + md5data)
+    uint8_t md5[16] = {0};
+    uint8_t len = strlen(ctx->password);
+
+    out[0] = id;
+    memcpy(out + 1, ctx->password, len);
+    memcpy(out + 1 + len, in + 1, in[0]);
+
+    MD5_CTX context;
+    MD5_Init(&context);
+    MD5_Update(&context, out, 1 + len + in[0]);
+    MD5_Final(md5, &context);
+
+    out[0] = 16;
+    memcpy(out + 1, md5, sizeof(md5));
+    memcpy(out + 1 + sizeof(md5), ctx->username, strlen(ctx->username));
+    *length = 1 + sizeof(md5) + strlen(ctx->username);
 
     return EAPOL_OK;
 }
@@ -34,7 +57,11 @@ int h3c_init(h3c_ctx_t *c) {
     else
         ctx = c;
 
+    // Set callback
     erc.id = h3c_send_id;
+    erc.md5 = h3c_send_md5;
+
+    // Set EAPoL context
     ec.interface = ctx->interface;
     ec.eap = NULL;
     ec.req = &erc;

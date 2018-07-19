@@ -135,10 +135,13 @@ struct eap_cb {
 typedef struct eap_cb eap_cb_t;
 
 // EAP Request Callback
-typedef int (*eap_func_send_id_t)(uint8_t *data, uint16_t *length);
+typedef int (*eap_func_send_id_t)(uint8_t *out, uint16_t *length);
+
+typedef int (*eap_func_send_md5_t)(uint8_t id, uint8_t *in, uint8_t *out, uint16_t *length);
 
 struct eap_req_cb {
     eap_func_send_id_t id;
+    eap_func_send_md5_t md5;
 };
 
 typedef struct eap_req_cb eap_req_cb_t;
