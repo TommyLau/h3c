@@ -147,6 +147,11 @@ int eapol_logoff() {
     return eapol_send(sizeof(ether_hdr_t) + sizeof(eapol_hdr_t));
 }
 
+static int eapol_send_id(uint8_t id) {
+
+    return EAPOL_OK;
+}
+
 int eapol_dispatcher() {
     if (eapol_recv() != EAPOL_OK)
         return EAPOL_E_RECV;
@@ -173,11 +178,11 @@ int eapol_dispatcher() {
         case EAP_REQUEST:
             fprintf(stdout, "EAP Request\n");
 
-            uint8_t type = *((uint8_t *) pkt + sizeof(eapol_pkt_t));
-            switch (type) {
+            switch (((eap_pkt_t *) &pkt->eap_hdr)->type) {
                 case EAP_TYPE_IDENTITY:
                     fprintf(stderr, "EAP_TYPE_IDENTITY\n");
-                    break;
+                    printf("EAP Length: %d, : %d\n", pkt->eap_hdr.length, pkt->eap_hdr.id);
+                    return eapol_send_id(pkt->eap_hdr.id);
 
                 case EAP_TYPE_MD5:
                     fprintf(stderr, "EAP_TYPE_MD5\n");

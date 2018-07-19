@@ -74,6 +74,11 @@ struct eap_hdr {
     uint16_t length;
 }__attribute__ ((packed));
 
+struct eap_pkt {
+    struct eap_hdr hdr;
+    uint8_t type;
+}__attribute__((packed));
+
 struct eapol_pkt {
     struct ether_header eth_hdr;
     struct eapol_hdr eapol_hdr;
@@ -83,6 +88,7 @@ struct eapol_pkt {
 typedef struct ether_header ether_hdr_t;
 typedef struct eapol_hdr eapol_hdr_t;
 typedef struct eap_hdr eap_hdr_t;
+typedef struct eap_pkt eap_pkt_t;
 typedef struct eapol_pkt eapol_pkt_t;
 
 typedef int (*eapol_cb_t)();
