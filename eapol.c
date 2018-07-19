@@ -141,6 +141,12 @@ int eapol_start() {
     return eapol_send(sizeof(ether_hdr_t) + sizeof(eapol_hdr_t));
 }
 
+int eapol_logoff() {
+    eapol_eapol_hdr_only(EAPOL_LOGOFF);
+
+    return eapol_send(sizeof(ether_hdr_t) + sizeof(eapol_hdr_t));
+}
+
 int eapol_dispatcher() {
     if (eapol_recv() != EAPOL_OK)
         return EAPOL_E_RECV;

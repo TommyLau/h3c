@@ -109,4 +109,6 @@ void eap_header(uint8_t code, uint8_t id, uint16_t length);
 
 int eapol_start();
 
+int eapol_logoff();
+
 int eapol_dispatcher();

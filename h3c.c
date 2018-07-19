@@ -28,7 +28,7 @@ int h3c_init(h3c_context_t *hc) {
 
 void h3c_cleanup() {
     fprintf(stdout, "Clean up . . .\n");
-    h3c_logoff();
+    eapol_logoff();
     eapol_cleanup();
 }
 
@@ -36,15 +36,6 @@ static void h3c_signal_handler() {
     fprintf(stdout, "Exiting...\n");
     h3c_cleanup();
     exit(EXIT_SUCCESS);
-}
-
-int h3c_logoff() {
-    eapol_header(EAPOL_LOGOFF, 0);
-
-    if (eapol_send(sizeof(ether_hdr_t) + sizeof(eapol_hdr_t)) != EAPOL_OK)
-        return H3C_E_LOGOFF_FAIL;
-
-    return H3C_OK;
 }
 
 void h3c_run() {
