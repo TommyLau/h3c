@@ -154,15 +154,59 @@ int eapol_dispatcher() {
     fprintf(stdout, "Dest: [%s], Ether type: %04x\n", ether_ntoa((struct ether_addr *) pkt->eth_hdr.ether_dhost),
             ntohs(pkt->eth_hdr.ether_type));
 
+    // Ignore non EAPoL ethernet type
     if (ntohs(pkt->eth_hdr.ether_type) != ETHERTYPE_PAE
         || memcmp(pkt->eth_hdr.ether_dhost, mac_addr.octet, sizeof(struct ether_addr)) != 0) {
-        // Ignore non EAPoL ethernet type
         return EAPOL_OK;
     }
 
     fprintf(stdout, "----- OK -----: [%s], Ether type: %04X\n",
             ether_ntoa((struct ether_addr *) pkt->eth_hdr.ether_dhost),
             ntohs(pkt->eth_hdr.ether_type));
+
+    if (pkt->eapol_hdr.type != EAPOL_EAP_PACKET) {
+        fprintf(stdout, "Not EAP Packet: %02x\n", pkt->eapol_hdr.type);
+        return EAPOL_OK;
+    }
+
+    switch (pkt->eap_hdr.code) {
+        case EAP_REQUEST:
+            fprintf(stdout, "EAP Request\n");
+
+            uint8_t type = *((uint8_t *) pkt + sizeof(eapol_pkt_t));
+            switch (type) {
+                case EAP_TYPE_IDENTITY:
+                    fprintf(stderr, "EAP_TYPE_IDENTITY\n");
+                    break;
+
+                case EAP_TYPE_MD5:
+                    fprintf(stderr, "EAP_TYPE_MD5\n");
+                    break;
+
+                case EAP_TYPE_H3C:
+                    fprintf(stderr, "EAP_TYPE_H3C\n");
+                    break;
+
+                default:
+                    fprintf(stderr, "Unknown EAP request type\n");
+            }
+            break;
+
+        case EAP_RESPONSE:
+            fprintf(stdout, "EAP Response\n");
+            break;
+
+        case EAP_SUCCESS:
+            fprintf(stdout, "EAP Success\n");
+            break;
+
+        case EAP_FAILURE:
+            fprintf(stdout, "EAP Failure\n");
+            break;
+
+        default:
+            fprintf(stderr, "Unknown EAP code\n");
+    }
 
     return EAPOL_OK;
 }
