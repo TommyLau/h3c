@@ -9,12 +9,9 @@
 #include "eapol.h"
 #include "utils.h"
 
-#define EAPOL_VERSION 1
-
-static const uint8_t PAE_GROUP_ADDR[ETHER_ADDR_LEN] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x03};
-
-// The ethernet header for EAPoL
-static ether_hdr_t eth_hdr = {0};
+// MAC Addresses
+static const struct ether_addr PAE_GROUP_ADDR = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x03};
+static struct ether_addr mac_addr = {0};
 
 // BPF Handler
 static int bpf_fd = 0;
@@ -26,10 +23,11 @@ static struct timeval timeout = {30, 0};
 static uint8_t *send_buf = NULL;
 static uint8_t *recv_buf = NULL;
 static size_t buf_len = BPF_MAXBUFSIZE;
+static eapol_pkt_t *pkt = NULL;
 
 int eapol_init(const char *interface) {
     // Init interface and get MAC address
-    if (util_get_mac(interface, eth_hdr.ether_shost) != UTIL_OK)
+    if (util_get_mac(interface, mac_addr.octet) != UTIL_OK)
         return EAPOL_E_INIT_INTERFACE;
 
     char bpf_str[32] = {0};
@@ -55,7 +53,6 @@ int eapol_init(const char *interface) {
     u_int flag = 1;
 
     if (ioctl(bpf_fd, BIOCGBLEN, &buf_len) < 0 // Get read buffer length
-        || ioctl(bpf_fd, BIOCSBLEN, &buf_len) < 0 // Set read buffer length
         || ioctl(bpf_fd, BIOCSETIF, &ifr) < 0 // Set bpf interface
         || ioctl(bpf_fd, BIOCIMMEDIATE, &flag) < 0 // Enable immediate mode
         || ioctl(bpf_fd, BIOCSHDRCMPLT, &flag) < 0 // Set header complete to 1 (not auto)
@@ -74,8 +71,10 @@ int eapol_init(const char *interface) {
     }
 
     // Setup the EAPoL request header with source MAC address and PAE group address
-    memcpy(eth_hdr.ether_dhost, PAE_GROUP_ADDR, sizeof(struct ether_addr));
-    eth_hdr.ether_type = htons(ETHERTYPE_PAE);
+    ether_hdr_t *eth_hdr = (ether_hdr_t *) send_buf;
+    memcpy(eth_hdr->ether_shost, mac_addr.octet, sizeof(struct ether_addr));
+    memcpy(eth_hdr->ether_dhost, PAE_GROUP_ADDR.octet, sizeof(struct ether_addr));
+    eth_hdr->ether_type = htons(ETHERTYPE_PAE);
 
     return EAPOL_OK;
 }
@@ -86,9 +85,6 @@ void eapol_cleanup() {
 }
 
 int eapol_send(int length) {
-    // Manually set the ethernet header
-    memcpy(send_buf, &eth_hdr, sizeof(ether_hdr_t));
-
     if (write(bpf_fd, send_buf, length) == -1) {
         return EAPOL_E_SEND;
     }
@@ -96,7 +92,7 @@ int eapol_send(int length) {
     return EAPOL_OK;
 }
 
-int eapol_recv(int length) {
+static inline int eapol_recv() {
     fd_set readset;
     FD_ZERO(&readset);
     FD_SET(bpf_fd, &readset);
@@ -105,8 +101,11 @@ int eapol_recv(int length) {
     if (select(bpf_fd + 1, &readset, NULL, NULL, &timeout) != 1)
         return EAPOL_E_RECV;
 
-    if (read(bpf_fd, recv_buf, length) == -1)
+    if (read(bpf_fd, recv_buf, buf_len) == -1)
         return EAPOL_E_RECV;
+
+    // The receive packet without BPF header
+    pkt = (eapol_pkt_t *) (recv_buf + ((struct bpf_hdr *) recv_buf)->bh_hdrlen);
 
     return EAPOL_OK;
 }
@@ -126,23 +125,21 @@ void eap_header(uint8_t code, uint8_t id, uint16_t length) {
 }
 
 int eapol_dispatcher() {
-    if (eapol_recv(buf_len) != EAPOL_OK)
+    if (eapol_recv() != EAPOL_OK)
         return EAPOL_E_RECV;
 
-    eapol_pkt_t *p = (eapol_pkt_t *) (recv_buf + ((struct bpf_hdr *) recv_buf)->bh_hdrlen);
+    fprintf(stdout, "Dest: [%s], Ether type: %04x\n", ether_ntoa((struct ether_addr *) pkt->eth_hdr.ether_dhost),
+            ntohs(pkt->eth_hdr.ether_type));
 
-    fprintf(stdout, "Dest: [%s], Ether type: %04x\n", ether_ntoa((struct ether_addr *) p->eth_hdr.ether_dhost),
-            ntohs(p->eth_hdr.ether_type));
-
-    if (ntohs(p->eth_hdr.ether_type) != ETHERTYPE_PAE
-        || memcmp(p->eth_hdr.ether_dhost, eth_hdr.ether_shost, sizeof(struct ether_addr)) != 0) {
+    if (ntohs(pkt->eth_hdr.ether_type) != ETHERTYPE_PAE
+        || memcmp(pkt->eth_hdr.ether_dhost, mac_addr.octet, sizeof(struct ether_addr)) != 0) {
         // Ignore non EAPoL ethernet type
         return EAPOL_OK;
     }
 
     fprintf(stdout, "----- OK -----: [%s], Ether type: %04X\n",
-            ether_ntoa((struct ether_addr *) p->eth_hdr.ether_dhost),
-            ntohs(p->eth_hdr.ether_type));
+            ether_ntoa((struct ether_addr *) pkt->eth_hdr.ether_dhost),
+            ntohs(pkt->eth_hdr.ether_type));
 
     return EAPOL_OK;
 }

@@ -3,6 +3,8 @@
 #include <net/ethernet.h>
 #include <stdint.h>
 
+#define EAPOL_VERSION 1
+
 enum {
     EAPOL_EAP_PACKET = 0,
     EAPOL_START = 1,
@@ -100,8 +102,6 @@ int eapol_init(const char *interface);
 void eapol_cleanup();
 
 int eapol_send(int length);
-
-int eapol_recv(int length);
 
 void eapol_header(uint8_t type, uint16_t length);
 

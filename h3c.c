@@ -41,10 +41,6 @@ static void h3c_signal_handler() {
 int h3c_start() {
     eapol_header(EAPOL_START, 0);
 
-    printf("ether_hdr_t: %ld, eapol_hdr_t: %ld\n",
-           sizeof(eapol_hdr_t),
-           sizeof(eapol_hdr_t));
-
     if (eapol_send(sizeof(ether_hdr_t) + sizeof(eapol_hdr_t)) != EAPOL_OK)
         return H3C_E_START_FAIL;
 
