@@ -10,16 +10,16 @@ enum {
     H3C_E_LOGOFF_FAIL
 };
 
-struct h3c_context {
-    char *interface;
-    char *username;
-    char *password;
-    eapol_callback_t *callback;
+struct h3c_ctx {
+    const char *interface;
+    const char *username;
+    const char *password;
+    eap_cb_t *cb;
 };
 
-typedef struct h3c_context h3c_context_t;
+typedef struct h3c_ctx h3c_ctx_t;
 
-int h3c_init(h3c_context_t *hc);
+int h3c_init(h3c_ctx_t *c);
 
 void h3c_cleanup();
 

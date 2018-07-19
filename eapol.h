@@ -5,6 +5,10 @@
 
 #define EAPOL_VERSION 1
 
+// ------------------------------------------------------------
+// Enumeration
+// ------------------------------------------------------------
+// EAPoL Type
 enum {
     EAPOL_EAP_PACKET = 0,
     EAPOL_START = 1,
@@ -13,6 +17,7 @@ enum {
     EAPOL_ENCAPSULATED_ASF_ALERT = 4
 };
 
+// EAP Code
 enum {
     EAP_REQUEST = 1,
     EAP_RESPONSE = 2,
@@ -20,6 +25,7 @@ enum {
     EAP_FAILURE = 4
 };
 
+// EAP Type
 enum {
     EAP_TYPE_NONE = 0,
     EAP_TYPE_IDENTITY = 1 /* RFC 3748 */,
@@ -52,8 +58,10 @@ enum {
     EAP_TYPE_EXPANDED = 254 /* RFC 3748 */
 };
 
+// EAPoL Error Code
 enum {
     EAPOL_OK = 0,
+    EAPOL_E_INVALID_PARAMETERS,
     EAPOL_E_INIT_INTERFACE,
     EAPOL_E_BPF_OPEN,
     EAPOL_E_IOCTL,
@@ -62,23 +70,41 @@ enum {
     EAPOL_E_RECV
 };
 
-struct eapol_hdr {
-    uint8_t version;
-    uint8_t type;
-    uint16_t length;
-}__attribute__ ((packed));
 
+// ------------------------------------------------------------
+// Define the header & packet struct of EAP and EAPoL
+// ------------------------------------------------------------
+/*
+// EAP Header
 struct eap_hdr {
     uint8_t code;
     uint8_t id;
     uint16_t length;
 }__attribute__ ((packed));
 
+// EAP Packet
 struct eap_pkt {
     struct eap_hdr hdr;
     uint8_t type;
 }__attribute__((packed));
+ */
 
+// EAP Header
+struct eap_hdr {
+    uint8_t code;
+    uint8_t id;
+    uint16_t length;
+    uint8_t type;
+}__attribute__((packed));
+
+// EAPoL Header
+struct eapol_hdr {
+    uint8_t version;
+    uint8_t type;
+    uint16_t length;
+}__attribute__ ((packed));
+
+// EAPoL Packet
 struct eapol_pkt {
     struct ether_header eth_hdr;
     struct eapol_hdr eapol_hdr;
@@ -91,27 +117,51 @@ typedef struct eap_hdr eap_hdr_t;
 typedef struct eap_pkt eap_pkt_t;
 typedef struct eapol_pkt eapol_pkt_t;
 
-typedef int (*eapol_cb_t)();
 
-struct eapol_callback {
-    eapol_cb_t success;
-    eapol_cb_t failure;
-    eapol_cb_t eap;
-    eapol_cb_t response;
-    eapol_cb_t unknown;
+// ------------------------------------------------------------
+// Define the callback function for EAP request
+// ------------------------------------------------------------
+// EAP Callback
+typedef int (*eap_func_t)();
+
+struct eap_cb {
+    eap_func_t success;
+    eap_func_t failure;
+    eap_func_t eap;
+    eap_func_t response;
+    eap_func_t unknown;
 };
 
-typedef struct eapol_callback eapol_callback_t;
+typedef struct eap_cb eap_cb_t;
 
-int eapol_init(const char *interface);
+// EAP Request Callback
+typedef int (*eap_func_send_id_t)(uint8_t *data, uint16_t *length);
+
+struct eap_req_cb {
+    eap_func_send_id_t id;
+};
+
+typedef struct eap_req_cb eap_req_cb_t;
+
+
+// ------------------------------------------------------------
+// Define the EAPoL context
+// ------------------------------------------------------------
+struct eapol_ctx {
+    const char *interface;
+    eap_cb_t *eap;
+    eap_req_cb_t *req;
+};
+
+typedef struct eapol_ctx eapol_ctx_t;
+
+
+// ------------------------------------------------------------
+// EAPoL functions
+// ------------------------------------------------------------
+int eapol_init(eapol_ctx_t *c);
 
 void eapol_cleanup();
-
-int eapol_send(int length);
-
-void eapol_header(uint8_t type, uint16_t length);
-
-void eap_header(uint8_t code, uint8_t id, uint16_t length);
 
 int eapol_start();
 

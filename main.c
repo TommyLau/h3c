@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
         interface = "en0";
 
     if (username == NULL) {
-        fprintf(stderr, "Please input username.\n");
+        fprintf(stderr, "Please specific username.\n");
         return EXIT_FAILURE;
     }
 
@@ -89,12 +89,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-#if 0
-    fprintf(stdout, "Username '%s' with password '%s', interface: %s, md5: %d\n",
-            username, password, interface, md5);
-#endif
-
-    h3c_context_t hc = {interface, username, password, NULL};
+    h3c_ctx_t hc = {interface, username, password, NULL};
 
     if (h3c_init(&hc) != H3C_OK) {
         fprintf(stderr, "Ethernet interface initialize fail.\n");

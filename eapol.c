@@ -9,8 +9,13 @@
 #include "eapol.h"
 #include "utils.h"
 
-// MAC Addresses
+// Const
 static const struct ether_addr PAE_GROUP_ADDR = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x03};
+
+// EAPoL Context
+eapol_ctx_t *ctx = NULL;
+
+// MAC Addresses
 static struct ether_addr mac_addr = {0};
 
 // BPF Handler
@@ -25,9 +30,14 @@ static uint8_t *recv_buf = NULL;
 static size_t buf_len = BPF_MAXBUFSIZE;
 static eapol_pkt_t *pkt = NULL;
 
-int eapol_init(const char *interface) {
+int eapol_init(eapol_ctx_t *c) {
+    if (c == NULL || c->interface == NULL || c->req == NULL || c->req->id == NULL)
+        return EAPOL_E_INVALID_PARAMETERS;
+    else
+        ctx = c;
+
     // Init interface and get MAC address
-    if (util_get_mac(interface, mac_addr.octet) != UTIL_OK)
+    if (util_get_mac(ctx->interface, mac_addr.octet) != UTIL_OK)
         return EAPOL_E_INIT_INTERFACE;
 
     char bpf_str[32] = {0};
@@ -49,7 +59,7 @@ int eapol_init(const char *interface) {
     }
 
     struct ifreq ifr = {0};
-    strncpy(ifr.ifr_name, interface, sizeof(ifr.ifr_name));
+    strncpy(ifr.ifr_name, ctx->interface, sizeof(ifr.ifr_name));
     u_int flag = 1;
 
     if (ioctl(bpf_fd, BIOCGBLEN, &buf_len) < 0 // Get read buffer length
@@ -84,7 +94,7 @@ void eapol_cleanup() {
     free(send_buf);
 }
 
-int eapol_send(int length) {
+static int eapol_send(int length) {
     if (write(bpf_fd, send_buf, length) == -1) {
         return EAPOL_E_SEND;
     }
@@ -110,18 +120,12 @@ static inline int eapol_recv() {
     return EAPOL_OK;
 }
 
-void eapol_header(uint8_t type, uint16_t length) {
-    eapol_pkt_t *p = (eapol_pkt_t *) send_buf;
-    p->eapol_hdr.version = EAPOL_VERSION;
-    p->eapol_hdr.type = type;
-    p->eapol_hdr.length = length;
-}
-
-void eap_header(uint8_t code, uint8_t id, uint16_t length) {
+static inline void eapol_eap_hdr(uint8_t code, uint8_t id, uint16_t length, uint8_t type) {
     eapol_pkt_t *p = (eapol_pkt_t *) send_buf;
     p->eap_hdr.code = code;
     p->eap_hdr.id = id;
     p->eap_hdr.length = length;
+    p->eap_hdr.type = type;
 }
 
 static inline void eapol_eapol_hdr(uint8_t type, uint16_t length) {
@@ -131,25 +135,27 @@ static inline void eapol_eapol_hdr(uint8_t type, uint16_t length) {
     p->eapol_hdr.length = length;
 }
 
-static inline void eapol_eapol_hdr_only(uint8_t type) {
-    eapol_eapol_hdr(type, 0);
-}
-
 int eapol_start() {
-    eapol_eapol_hdr_only(EAPOL_START);
+    eapol_eapol_hdr(EAPOL_START, 0);
 
     return eapol_send(sizeof(ether_hdr_t) + sizeof(eapol_hdr_t));
 }
 
 int eapol_logoff() {
-    eapol_eapol_hdr_only(EAPOL_LOGOFF);
+    eapol_eapol_hdr(EAPOL_LOGOFF, 0);
 
     return eapol_send(sizeof(ether_hdr_t) + sizeof(eapol_hdr_t));
 }
 
 static int eapol_send_id(uint8_t id) {
+    uint16_t length = 0;
+    ctx->req->id(send_buf + sizeof(eapol_pkt_t), &length);
+    uint16_t nlen = htons(length + sizeof(eap_hdr_t));
+    eapol_eapol_hdr(EAPOL_EAP_PACKET, nlen);
+    eapol_eap_hdr(EAP_RESPONSE, id, nlen, EAP_TYPE_IDENTITY);
+    length += sizeof(eapol_pkt_t);
 
-    return EAPOL_OK;
+    return eapol_send(length);
 }
 
 int eapol_dispatcher() {
@@ -178,7 +184,7 @@ int eapol_dispatcher() {
         case EAP_REQUEST:
             fprintf(stdout, "EAP Request\n");
 
-            switch (((eap_pkt_t *) &pkt->eap_hdr)->type) {
+            switch (pkt->eap_hdr.type) {
                 case EAP_TYPE_IDENTITY:
                     fprintf(stderr, "EAP_TYPE_IDENTITY\n");
                     printf("EAP Length: %d, : %d\n", pkt->eap_hdr.length, pkt->eap_hdr.id);
