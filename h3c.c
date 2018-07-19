@@ -38,15 +38,6 @@ static void h3c_signal_handler() {
     exit(EXIT_SUCCESS);
 }
 
-int h3c_start() {
-    eapol_header(EAPOL_START, 0);
-
-    if (eapol_send(sizeof(ether_hdr_t) + sizeof(eapol_hdr_t)) != EAPOL_OK)
-        return H3C_E_START_FAIL;
-
-    return H3C_OK;
-}
-
 int h3c_logoff() {
     eapol_header(EAPOL_LOGOFF, 0);
 
@@ -57,6 +48,11 @@ int h3c_logoff() {
 }
 
 void h3c_run() {
+    if (eapol_start() != EAPOL_OK) {
+        fprintf(stderr, "Failed to send EAPoL authentication.\n");
+        exit(EXIT_FAILURE);
+    }
+
     signal(SIGINT, h3c_signal_handler);
     signal(SIGTERM, h3c_signal_handler);
 

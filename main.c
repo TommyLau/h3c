@@ -101,11 +101,6 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    if (h3c_start() != H3C_OK) {
-        fprintf(stderr, "Failed to send EAPoL authentication.\n");
-        return EXIT_FAILURE;
-    }
-
     h3c_run();
 
     return EXIT_SUCCESS;

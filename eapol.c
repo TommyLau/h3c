@@ -124,6 +124,23 @@ void eap_header(uint8_t code, uint8_t id, uint16_t length) {
     p->eap_hdr.length = length;
 }
 
+static inline void eapol_eapol_hdr(uint8_t type, uint16_t length) {
+    eapol_pkt_t *p = (eapol_pkt_t *) send_buf;
+    p->eapol_hdr.version = EAPOL_VERSION;
+    p->eapol_hdr.type = type;
+    p->eapol_hdr.length = length;
+}
+
+static inline void eapol_eapol_hdr_only(uint8_t type) {
+    eapol_eapol_hdr(type, 0);
+}
+
+int eapol_start() {
+    eapol_eapol_hdr_only(EAPOL_START);
+
+    return eapol_send(sizeof(ether_hdr_t) + sizeof(eapol_hdr_t));
+}
+
 int eapol_dispatcher() {
     if (eapol_recv() != EAPOL_OK)
         return EAPOL_E_RECV;
