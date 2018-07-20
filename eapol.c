@@ -38,7 +38,7 @@ static eapol_pkt_t *send_pkt = NULL;
 static uint16_t send_len = 0;
 
 int eapol_init(eapol_ctx_t *c) {
-    if (c == NULL || c->interface == NULL || c->req == NULL || c->req->id == NULL || c->req->md5 == NULL)
+    if (c == NULL || c->interface == NULL || c->id == NULL || c->md5 == NULL)
         return EAPOL_E_INVALID_PARAMETERS;
     else
         ctx = c;
@@ -167,13 +167,13 @@ int eapol_logoff() {
 }
 
 static int eapol_send_id() {
-    ctx->req->id(send_buf_data, &send_len);
+    ctx->id(send_buf_data, &send_len);
 
     return eapol_send();
 }
 
 static inline int eapol_send_md5() {
-    ctx->req->md5(recv_pkt->eap_hdr.id, recv_buf_data, send_buf_data, &send_len);
+    ctx->md5(recv_pkt->eap_hdr.id, recv_buf_data, send_buf_data, &send_len);
 
     return eapol_send();
 }

@@ -26,8 +26,7 @@ const static uint8_t VERSION_INFO[32] = {
 // H3C context
 static h3c_ctx_t *ctx = NULL;
 
-// EAP context and callback
-static eap_req_cb_t erc = {0};
+// EAPoL context and callback
 static eapol_ctx_t ec = {0};
 
 const char *h3c_desc(int code) {
@@ -74,14 +73,11 @@ int h3c_init(h3c_ctx_t *c) {
 
     ctx->output(H3C_S_INIT);
 
-    // Set callback
-    erc.id = h3c_send_id;
-    erc.md5 = h3c_send_md5;
-
     // Set EAPoL context
     ec.interface = ctx->interface;
     ec.eap = NULL;
-    ec.req = &erc;
+    ec.id = h3c_send_id;
+    ec.md5 = h3c_send_md5;
 
     if (eapol_init(&ec) != EAPOL_OK)
         return H3C_E_EAPOL_INIT;
