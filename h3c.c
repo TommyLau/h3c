@@ -54,6 +54,7 @@ static int h3c_eap_unknown() {
 }
 
 static int h3c_send_id(uint8_t *out, uint16_t *length) {
+    fprintf(stdout, "EAP_TYPE_IDENTITY\n");
     memcpy(out, VERSION_INFO, sizeof(VERSION_INFO));
     memcpy(out + sizeof(VERSION_INFO), ctx->username, strlen(ctx->username));
     *length = sizeof(VERSION_INFO) + strlen(ctx->username);
@@ -62,6 +63,7 @@ static int h3c_send_id(uint8_t *out, uint16_t *length) {
 }
 
 static int h3c_send_md5(uint8_t id, uint8_t *in, uint8_t *out, uint16_t *length) {
+    fprintf(stdout, "EAP_TYPE_MD5\n");
     // MD5(id + password + md5data)
     uint8_t md5[16] = {0};
     uint8_t len = strlen(ctx->password);

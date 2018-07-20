@@ -195,37 +195,32 @@ int eapol_dispatcher() {
         case EAP_REQUEST:
             switch (recv_pkt->eap_hdr.type) {
                 case EAP_TYPE_IDENTITY:
-                    fprintf(stderr, "EAP_TYPE_IDENTITY\n");
                     return eapol_send_id();
 
                 case EAP_TYPE_MD5:
-                    fprintf(stderr, "EAP_TYPE_MD5\n");
                     eapol_send_md5();
                     break;
 
                 case EAP_TYPE_H3C:
-                    fprintf(stderr, "EAP_TYPE_H3C\n");
-                    break;
+                    // TODO: Implement H3C method
+                    return EAPOL_E_UNKNOWN_EAP_REQUEST;
 
                 default:
-                    fprintf(stderr, "Unknown EAP request type: %d\n", recv_pkt->eap_hdr.type);
+                    return EAPOL_E_UNKNOWN_EAP_REQUEST;
             }
             break;
 
         case EAP_RESPONSE:
-            fprintf(stdout, "EAP Response\n");
             if (ctx->response != NULL)
                 return ctx->response();
             break;
 
         case EAP_SUCCESS:
-            fprintf(stdout, "EAP Success\n");
             if (ctx->success != NULL)
                 return ctx->success();
             break;
 
         case EAP_FAILURE:
-            fprintf(stdout, "EAP Failure\n");
             if (ctx->failure != NULL)
                 return ctx->failure();
             return EAPOL_E_AUTH_FAILURE;
@@ -235,9 +230,9 @@ int eapol_dispatcher() {
             break;
 
         default:
-            fprintf(stderr, "Unknown EAP code: %d\n", recv_pkt->eap_hdr.code);
             if (ctx->unknown != NULL)
                 return ctx->unknown();
+            return EAPOL_E_UNKNOWN_EAP_CODE;
     }
 
     return EAPOL_OK;

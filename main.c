@@ -14,7 +14,7 @@
 #endif
 
 static void print(int stat) {
-    fprintf(stdout, "STAT: %d\n", stat);
+    fprintf(stdout, "STAT: %d\nDESC: %s\n", stat, h3c_desc(stat));
 }
 
 int main(int argc, char *argv[]) {
