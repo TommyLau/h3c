@@ -13,10 +13,13 @@
 #define BUILD_HASH "dev"
 #endif
 
+static void print(int stat) {
+    fprintf(stdout, "STAT: %d\n", stat);
+}
+
 int main(int argc, char *argv[]) {
     fprintf(stdout, "h3c %s b%s : Copyright (c) 2018 Tommy Lau <tommy@gen-new.com>\n",
             BUILD_VERSION, BUILD_HASH);
-    //fprintf(stdout, "Copyright (c) 2018 Tommy Lau <tommy@gen-new.com>\n\n");
     fprintf(stdout, "A command line tool for H3C 802.1X authentication\n\n");
 
     static struct option options[] = {
@@ -99,10 +102,12 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    h3c_ctx_t hc = {interface, username, password, NULL};
+    h3c_ctx_t hc = {interface, username, password, print, NULL};
 
-    if (h3c_init(&hc) != H3C_OK) {
-        fprintf(stderr, "Ethernet interface initialize fail.\n");
+    int ret = 0;
+
+    if ((ret = h3c_init(&hc)) != H3C_OK) {
+        fprintf(stderr, "%s\n", h3c_desc(ret));
         return EXIT_FAILURE;
     }
 

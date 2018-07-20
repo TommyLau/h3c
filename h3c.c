@@ -6,6 +6,17 @@
 #include "h3c.h"
 #include "md5.h"
 
+// H3C descriptions
+const struct {
+    int code;
+    const char *message;
+} H3C_DESC[] = {
+        {H3C_OK,                   "No error"},
+        {H3C_E_INVALID_PARAMETERS, "Invalid parameters"},
+        {H3C_E_EAPOL_INIT,         "Fail to initialize EAPoL"},
+        {H3C_S_INIT,               "H3C initializing"},
+};
+
 // H3C version information
 const static uint8_t VERSION_INFO[32] = {
         0x06, 0x07, 'b', 'j', 'Q', '7', 'S', 'E', '8', 'B', 'Z', '3', 'M', 'q', 'H', 'h',
@@ -18,6 +29,10 @@ static h3c_ctx_t *ctx = NULL;
 // EAP context and callback
 static eap_req_cb_t erc = {0};
 static eapol_ctx_t ec = {0};
+
+const char *h3c_desc(int code) {
+    return H3C_DESC[code].message;
+}
 
 static int h3c_send_id(uint8_t *out, uint16_t *length) {
     memcpy(out, VERSION_INFO, sizeof(VERSION_INFO));
@@ -51,11 +66,13 @@ static int h3c_send_md5(uint8_t id, uint8_t *in, uint8_t *out, uint16_t *length)
 
 int h3c_init(h3c_ctx_t *c) {
     // Check parameters
-    if (c == NULL || c->interface == NULL || c->username == NULL || c->password == NULL
+    if (c == NULL || c->interface == NULL || c->username == NULL || c->password == NULL || c->output == NULL
         || strlen(c->interface) == 0 || strlen(c->username) == 0 || strlen(c->password) == 0)
         return H3C_E_INVALID_PARAMETERS;
     else
         ctx = c;
+
+    ctx->output(H3C_S_INIT);
 
     // Set callback
     erc.id = h3c_send_id;
@@ -73,13 +90,11 @@ int h3c_init(h3c_ctx_t *c) {
 }
 
 void h3c_cleanup() {
-    fprintf(stdout, "Clean up . . .\n");
     eapol_logoff();
     eapol_cleanup();
 }
 
 static void h3c_signal_handler() {
-    fprintf(stdout, "Exiting...\n");
     h3c_cleanup();
     exit(EXIT_SUCCESS);
 }
