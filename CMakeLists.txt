@@ -5,6 +5,12 @@ set(CMAKE_C_STANDARD 11)
 
 # Git build version related
 execute_process(
+        COMMAND git describe --abbrev=0 --tags
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+execute_process(
         COMMAND git rev-list HEAD --count
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         OUTPUT_VARIABLE GIT_BUILD
@@ -18,4 +24,4 @@ execute_process(
 )
 
 add_executable(h3c eapol.c h3c.c md5.c utils.c main.c)
-target_compile_definitions(h3c PRIVATE -DBUILD_HASH="${GIT_BUILD}-${GIT_HASH}")
+target_compile_definitions(h3c PRIVATE -DBUILD_VERSION="${GIT_VERSION}" -DBUILD_HASH="b${GIT_BUILD}-${GIT_HASH}")

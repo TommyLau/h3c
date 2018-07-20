@@ -6,7 +6,7 @@
 #include "h3c.h"
 
 #ifndef BUILD_VERSION
-#define BUILD_VERSION "v0.1.0"
+#define BUILD_VERSION "v0.0.1"
 #endif
 
 #ifndef BUILD_HASH
@@ -18,7 +18,7 @@ static void print(int stat) {
 }
 
 int main(int argc, char *argv[]) {
-    fprintf(stdout, "h3c %s b%s : Copyright (c) 2018 Tommy Lau <tommy@gen-new.com>\n",
+    fprintf(stdout, "h3c %s %s : Copyright (c) 2018 Tommy Lau <tommy@gen-new.com>\n",
             BUILD_VERSION, BUILD_HASH);
     fprintf(stdout, "A command line tool for H3C 802.1X authentication\n\n");
 
