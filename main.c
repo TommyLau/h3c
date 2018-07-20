@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    h3c_ctx_t hc = {interface, username, password, print, NULL};
+    h3c_ctx_t hc = {interface, username, password, print};
 
     int ret = 0;
 

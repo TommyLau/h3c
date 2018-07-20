@@ -33,6 +33,26 @@ const char *h3c_desc(int code) {
     return H3C_DESC[code].message;
 }
 
+static int h3c_eap_response() {
+    fprintf(stdout, "Got EAP Response\n");
+    return EAPOL_OK;
+}
+
+static int h3c_eap_success() {
+    fprintf(stdout, "Got EAP Success\n");
+    return EAPOL_OK;
+}
+
+static int h3c_eap_failure() {
+    fprintf(stdout, "Got EAP Failure\n");
+    return EAPOL_OK;
+}
+
+static int h3c_eap_unknown() {
+    fprintf(stdout, "Got EAP Unknown\n");
+    return EAPOL_OK;
+}
+
 static int h3c_send_id(uint8_t *out, uint16_t *length) {
     memcpy(out, VERSION_INFO, sizeof(VERSION_INFO));
     memcpy(out + sizeof(VERSION_INFO), ctx->username, strlen(ctx->username));
@@ -75,7 +95,10 @@ int h3c_init(h3c_ctx_t *c) {
 
     // Set EAPoL context
     ec.interface = ctx->interface;
-    ec.eap = NULL;
+    ec.response = h3c_eap_response;
+    ec.success = h3c_eap_success;
+    ec.failure = h3c_eap_failure;
+    ec.unknown = h3c_eap_unknown;
     ec.id = h3c_send_id;
     ec.md5 = h3c_send_md5;
 

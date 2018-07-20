@@ -17,7 +17,6 @@ struct h3c_ctx {
     const char *username;
     const char *password;
     h3c_output_cb_t *output;
-    eap_cb_t *cb;
 };
 
 typedef struct h3c_ctx h3c_ctx_t;

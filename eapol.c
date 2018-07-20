@@ -214,14 +214,20 @@ int eapol_dispatcher() {
 
         case EAP_RESPONSE:
             fprintf(stdout, "EAP Response\n");
+            if (ctx->response != NULL)
+                return ctx->response();
             break;
 
         case EAP_SUCCESS:
             fprintf(stdout, "EAP Success\n");
+            if (ctx->success != NULL)
+                return ctx->success();
             break;
 
         case EAP_FAILURE:
             fprintf(stdout, "EAP Failure\n");
+            if (ctx->failure != NULL)
+                return ctx->failure();
             return EAPOL_E_AUTH_FAILURE;
 
         case 10:
@@ -230,6 +236,8 @@ int eapol_dispatcher() {
 
         default:
             fprintf(stderr, "Unknown EAP code: %d\n", recv_pkt->eap_hdr.code);
+            if (ctx->unknown != NULL)
+                return ctx->unknown();
     }
 
     return EAPOL_OK;

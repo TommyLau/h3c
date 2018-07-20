@@ -83,29 +83,21 @@ typedef struct eapol_pkt eapol_pkt_t;
 // EAP Callback
 typedef int (*eap_func_t)();
 
-struct eap_cb {
-    eap_func_t success;
-    eap_func_t failure;
-    eap_func_t eap;
-    eap_func_t response;
-    eap_func_t unknown;
-};
+typedef int (*eap_req_send_id_t)(uint8_t *out, uint16_t *length);
 
-typedef struct eap_cb eap_cb_t;
-
-// EAP Request Callback
-typedef int (*eap_func_send_id_t)(uint8_t *out, uint16_t *length);
-
-typedef int (*eap_func_send_md5_t)(uint8_t id, uint8_t *in, uint8_t *out, uint16_t *length);
+typedef int (*eap_req_send_md5_t)(uint8_t id, uint8_t *in, uint8_t *out, uint16_t *length);
 
 // ------------------------------------------------------------
 // Define the EAPoL context
 // ------------------------------------------------------------
 struct eapol_ctx {
     const char *interface;
-    eap_cb_t *eap;
-    eap_func_send_id_t id;
-    eap_func_send_md5_t md5;
+    eap_func_t response;
+    eap_func_t success;
+    eap_func_t failure;
+    eap_func_t unknown;
+    eap_req_send_id_t id;
+    eap_req_send_md5_t md5;
 };
 
 typedef struct eapol_ctx eapol_ctx_t;
