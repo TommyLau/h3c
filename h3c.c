@@ -10,18 +10,18 @@ const struct {
     const char *message;
 } H3C_DESC[] = {
         {H3C_OK,                   "No error"},
+        {H3C_S_EAP_FAILURE,        "EAP Failure"},
+        {H3C_S_EAP_SUCCESS,        "EAP Success"},
+        {H3C_S_EAP_TYPE_IDENTITY,  "Got EAP Request - Identity"},
+        {H3C_S_EAP_TYPE_MD5,       "Got EAP Request - MD5 Challenge"},
+        {H3C_S_EAP_TYPE_H3C,       "Got EAP Request - H3C Challenge"},
+        {H3C_S_EAP_RESPONSE,       "EAP Response"},
+        {H3C_S_EAP_START,          "EAP Auth Start"},
+        {H3C_S_EAP_UNKNOWN,        "EAP Unknown"},
         {H3C_E_INVALID_PARAMETERS, "Invalid parameters"},
         {H3C_E_EAPOL_INIT,         "Fail to initialize EAPoL"},
         {H3C_E_EAPOL_START,        "Failed to send EAPoL authentication"},
         {H3C_E_EAPOL_RESPONSE,     "Failed to response EAPoL authentication"},
-        {H3C_S_EAP_START,          "EAP Auth Start"},
-        {H3C_S_EAP_RESPONSE,       "EAP Response"},
-        {H3C_S_EAP_SUCCESS,        "EAP Success"},
-        {H3C_S_EAP_FAILURE,        "EAP Failure"},
-        {H3C_S_EAP_UNKNOWN,        "EAP Unknown"},
-        {H3C_S_EAP_TYPE_IDENTITY,  "Got EAP Request - Identity"},
-        {H3C_S_EAP_TYPE_MD5,       "Got EAP Request - MD5 Challenge"},
-        {H3C_S_EAP_TYPE_H3C,       "Got EAP Request - H3C Challenge"},
 };
 
 // H3C version information

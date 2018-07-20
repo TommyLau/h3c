@@ -13,8 +13,17 @@
 #define BUILD_HASH "dev"
 #endif
 
+// Colorized output
+static bool color = false;
+
+// MD5 Challenge with MD5
+static bool md5 = true;
+
 static void print(int stat) {
-    fprintf(stdout, "%s\n", h3c_desc(stat));
+    if (color)
+        fprintf(stdout, "\033[22;%dm%s\n\033[0m", 30 + stat, h3c_desc(stat));
+    else
+        fprintf(stdout, "%s\n", h3c_desc(stat));
 }
 
 int main(int argc, char *argv[]) {
@@ -27,7 +36,8 @@ int main(int argc, char *argv[]) {
             {"user",      required_argument, NULL, 'u'},
             {"password",  required_argument, NULL, 'p'},
             {"interface", optional_argument, NULL, 'i'},
-            {"method",    optional_argument, NULL, 'd'},
+            {"method",    optional_argument, NULL, 'm'},
+            {"color",     no_argument,       NULL, 'c'},
             {NULL, 0,                        NULL, 0}
     };
 
@@ -35,20 +45,29 @@ int main(int argc, char *argv[]) {
     char *interface = NULL;
     char *username = NULL;
     char *password = NULL;
-    bool md5 = true;
 
-    while ((c = getopt_long(argc, argv, "hu:p:i:m:", options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "hu:p:i:m:c", options, NULL)) != -1) {
         switch (c) {
             case 'h':
                 fprintf(stdout,
                         "Usage: h3c [options]\n"
                         "-h, --help          This help text\n"
+                        "-u, --username      Username\n"
+                        "-p, --password      Password\n"
                         "-i, --interface     Network interface (Default: en0)\n"
                         "-m, --method        EAP-MD5 CHAP Method [md5 / xor] (Default: md5)\n"
-                        "-p, --password      Password\n"
-                        "-u, --username      Username\n"
+                        "-c, --color         Enable colorized output\n"
+                        "\n"
                 );
                 return EXIT_SUCCESS;
+
+            case 'u':
+                username = optarg;
+                break;
+
+            case 'p':
+                password = optarg;
+                break;
 
             case 'i':
                 interface = optarg;
@@ -65,12 +84,8 @@ int main(int argc, char *argv[]) {
                 }
                 break;
 
-            case 'p':
-                password = optarg;
-                break;
-
-            case 'u':
-                username = optarg;
+            case 'c':
+                color = true;
                 break;
 
             default:
