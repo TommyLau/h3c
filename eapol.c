@@ -193,12 +193,9 @@ int eapol_dispatcher() {
 
     switch (recv_pkt->eap_hdr.code) {
         case EAP_REQUEST:
-            fprintf(stdout, "EAP Request\n");
-
             switch (recv_pkt->eap_hdr.type) {
                 case EAP_TYPE_IDENTITY:
                     fprintf(stderr, "EAP_TYPE_IDENTITY\n");
-                    printf("EAP Length: %d, : %d\n", recv_pkt->eap_hdr.length, recv_pkt->eap_hdr.id);
                     return eapol_send_id();
 
                 case EAP_TYPE_MD5:

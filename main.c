@@ -5,9 +5,19 @@
 #include <string.h>
 #include "h3c.h"
 
+#ifndef BUILD_VERSION
+#define BUILD_VERSION "v0.1.0"
+#endif
+
+#ifndef BUILD_HASH
+#define BUILD_HASH "dev"
+#endif
+
 int main(int argc, char *argv[]) {
-    fprintf(stdout, "h3c v0.1.0 build 001 - A command line tool for H3C 802.1X authentication\n");
-    fprintf(stdout, "Copyright (c) 2018 Tommy Lau <tommy@gen-new.com>\n\n");
+    fprintf(stdout, "h3c %s b%s : Copyright (c) 2018 Tommy Lau <tommy@gen-new.com>\n",
+            BUILD_VERSION, BUILD_HASH);
+    //fprintf(stdout, "Copyright (c) 2018 Tommy Lau <tommy@gen-new.com>\n\n");
+    fprintf(stdout, "A command line tool for H3C 802.1X authentication\n\n");
 
     static struct option options[] = {
             {"help",      no_argument,       NULL, 'h'},
