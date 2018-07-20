@@ -6,7 +6,16 @@ enum {
     H3C_OK = 0,
     H3C_E_INVALID_PARAMETERS,
     H3C_E_EAPOL_INIT,
-    H3C_S_INIT
+    H3C_E_EAPOL_START,
+    H3C_E_EAPOL_RESPONSE,
+    H3C_S_EAP_START,
+    H3C_S_EAP_RESPONSE,
+    H3C_S_EAP_SUCCESS,
+    H3C_S_EAP_FAILURE,
+    H3C_S_EAP_UNKNOWN,
+    H3C_S_EAP_TYPE_IDENTITY,
+    H3C_S_EAP_TYPE_MD5,
+    H3C_S_EAP_TYPE_H3C,
 };
 
 
@@ -26,9 +35,5 @@ const char *h3c_desc(int code);
 int h3c_init(h3c_ctx_t *c);
 
 void h3c_cleanup();
-
-int h3c_start();
-
-int h3c_logoff();
 
 void h3c_run();

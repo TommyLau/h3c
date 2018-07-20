@@ -1,5 +1,3 @@
-#include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "eapol.h"
@@ -14,7 +12,16 @@ const struct {
         {H3C_OK,                   "No error"},
         {H3C_E_INVALID_PARAMETERS, "Invalid parameters"},
         {H3C_E_EAPOL_INIT,         "Fail to initialize EAPoL"},
-        {H3C_S_INIT,               "H3C initializing"},
+        {H3C_E_EAPOL_START,        "Failed to send EAPoL authentication"},
+        {H3C_E_EAPOL_RESPONSE,     "Failed to response EAPoL authentication"},
+        {H3C_S_EAP_START,          "EAP Auth Start"},
+        {H3C_S_EAP_RESPONSE,       "EAP Response"},
+        {H3C_S_EAP_SUCCESS,        "EAP Success"},
+        {H3C_S_EAP_FAILURE,        "EAP Failure"},
+        {H3C_S_EAP_UNKNOWN,        "EAP Unknown"},
+        {H3C_S_EAP_TYPE_IDENTITY,  "Got EAP Request - Identity"},
+        {H3C_S_EAP_TYPE_MD5,       "Got EAP Request - MD5 Challenge"},
+        {H3C_S_EAP_TYPE_H3C,       "Got EAP Request - H3C Challenge"},
 };
 
 // H3C version information
@@ -34,27 +41,27 @@ const char *h3c_desc(int code) {
 }
 
 static int h3c_eap_response() {
-    fprintf(stdout, "Got EAP Response\n");
+    ctx->output(H3C_S_EAP_RESPONSE);
     return EAPOL_OK;
 }
 
 static int h3c_eap_success() {
-    fprintf(stdout, "Got EAP Success\n");
+    ctx->output(H3C_S_EAP_SUCCESS);
     return EAPOL_OK;
 }
 
 static int h3c_eap_failure() {
-    fprintf(stdout, "Got EAP Failure\n");
+    ctx->output(H3C_S_EAP_FAILURE);
     return EAPOL_OK;
 }
 
 static int h3c_eap_unknown() {
-    fprintf(stdout, "Got EAP Unknown\n");
+    ctx->output(H3C_S_EAP_UNKNOWN);
     return EAPOL_OK;
 }
 
 static int h3c_send_id(uint8_t *out, uint16_t *length) {
-    fprintf(stdout, "EAP_TYPE_IDENTITY\n");
+    ctx->output(H3C_S_EAP_TYPE_IDENTITY);
     memcpy(out, VERSION_INFO, sizeof(VERSION_INFO));
     memcpy(out + sizeof(VERSION_INFO), ctx->username, strlen(ctx->username));
     *length = sizeof(VERSION_INFO) + strlen(ctx->username);
@@ -63,7 +70,7 @@ static int h3c_send_id(uint8_t *out, uint16_t *length) {
 }
 
 static int h3c_send_md5(uint8_t id, uint8_t *in, uint8_t *out, uint16_t *length) {
-    fprintf(stdout, "EAP_TYPE_MD5\n");
+    ctx->output(H3C_S_EAP_TYPE_MD5);
     // MD5(id + password + md5data)
     uint8_t md5[16] = {0};
     uint8_t len = strlen(ctx->password);
@@ -93,8 +100,6 @@ int h3c_init(h3c_ctx_t *c) {
     else
         ctx = c;
 
-    ctx->output(H3C_S_INIT);
-
     // Set EAPoL context
     ec.interface = ctx->interface;
     ec.response = h3c_eap_response;
@@ -121,17 +126,19 @@ static void h3c_signal_handler() {
 }
 
 void h3c_run() {
+    ctx->output(H3C_S_EAP_START);
+
     if (eapol_start() != EAPOL_OK) {
-        fprintf(stderr, "Failed to send EAPoL authentication.\n");
+        ctx->output(H3C_E_EAPOL_START);
         exit(EXIT_FAILURE);
     }
 
     signal(SIGINT, h3c_signal_handler);
     signal(SIGTERM, h3c_signal_handler);
 
-    while (true) {
+    while (1) {
         if (eapol_dispatcher() != EAPOL_OK) {
-            fprintf(stderr, "Failed to response.\n");
+            ctx->output(H3C_E_EAPOL_RESPONSE);
             exit(EXIT_FAILURE);
         }
     }
