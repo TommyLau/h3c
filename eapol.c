@@ -182,14 +182,8 @@ int eapol_dispatcher() {
         return EAPOL_OK;
     }
 
-    fprintf(stdout, "----- OK -----: [%s], Ether type: %04X\n",
-            ether_ntoa((struct ether_addr *) pkt->eth_hdr.ether_dhost),
-            ntohs(pkt->eth_hdr.ether_type));
-
-    if (pkt->eapol_hdr.type != EAPOL_EAP_PACKET) {
-        fprintf(stdout, "Not EAP Packet: %02x\n", pkt->eapol_hdr.type);
+    if (pkt->eapol_hdr.type != EAPOL_EAP_PACKET)
         return EAPOL_OK;
-    }
 
     switch (pkt->eap_hdr.code) {
         case EAP_REQUEST:
@@ -225,6 +219,10 @@ int eapol_dispatcher() {
 
         case EAP_FAILURE:
             fprintf(stdout, "EAP Failure\n");
+            return EAPOL_E_AUTH_FAILURE;
+
+        case 10:
+            // TODO: Show message
             break;
 
         default:

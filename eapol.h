@@ -67,7 +67,8 @@ enum {
     EAPOL_E_IOCTL,
     EAPOL_E_MALLOC,
     EAPOL_E_SEND,
-    EAPOL_E_RECV
+    EAPOL_E_RECV,
+    EAPOL_E_AUTH_FAILURE
 };
 
 
