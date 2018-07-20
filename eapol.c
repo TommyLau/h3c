@@ -10,7 +10,7 @@
 #include "utils.h"
 
 #define send_buf_data (send_buf + sizeof(eapol_pkt_t))
-#define recv_buf_data ((uint8_t *) pkt + sizeof(eapol_pkt_t))
+#define recv_buf_data ((uint8_t *) recv_pkt + sizeof(eapol_pkt_t))
 
 // Const
 static const struct ether_addr PAE_GROUP_ADDR = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x03};
@@ -28,10 +28,14 @@ static int bpf_fd = 0;
 static struct timeval timeout = {30, 0};
 
 // Buffer
+static size_t buf_len = BPF_MAXBUFSIZE;
 static uint8_t *send_buf = NULL;
 static uint8_t *recv_buf = NULL;
-static size_t buf_len = BPF_MAXBUFSIZE;
-static eapol_pkt_t *pkt = NULL;
+
+// Packet pointers
+static eapol_pkt_t *recv_pkt = NULL;
+static eapol_pkt_t *send_pkt = NULL;
+static uint16_t send_len = 0;
 
 int eapol_init(eapol_ctx_t *c) {
     if (c == NULL || c->interface == NULL || c->req == NULL || c->req->id == NULL || c->req->md5 == NULL)
@@ -89,6 +93,10 @@ int eapol_init(eapol_ctx_t *c) {
     memcpy(eth_hdr->ether_dhost, PAE_GROUP_ADDR.octet, sizeof(struct ether_addr));
     eth_hdr->ether_type = htons(ETHERTYPE_PAE);
 
+    // Packet pointer to send buffer
+    send_pkt = (eapol_pkt_t *) send_buf;
+    recv_pkt = (eapol_pkt_t *) send_buf;
+
     return EAPOL_OK;
 }
 
@@ -97,10 +105,33 @@ void eapol_cleanup() {
     free(send_buf);
 }
 
-static int eapol_send(int length) {
-    if (write(bpf_fd, send_buf, length) == -1) {
+static int eapol_send() {
+    send_pkt->eapol_hdr.version = EAPOL_VERSION;
+
+    if (recv_pkt->eap_hdr.type != EAP_TYPE_NONE) {
+        uint16_t length = htons(send_len + sizeof(eap_hdr_t));
+
+        send_pkt->eapol_hdr.type = EAPOL_EAP_PACKET;
+        send_pkt->eapol_hdr.length = length;
+        send_pkt->eap_hdr.code = EAP_RESPONSE;
+        send_pkt->eap_hdr.id = recv_pkt->eap_hdr.id;
+        send_pkt->eap_hdr.length = length;
+        send_pkt->eap_hdr.type = recv_pkt->eap_hdr.type;
+        send_len += sizeof(eapol_pkt_t);
+    } else if (send_pkt->eapol_hdr.type == EAPOL_START || send_pkt->eapol_hdr.type == EAPOL_LOGOFF) {
+        send_pkt->eapol_hdr.length = 0;
+        send_len = sizeof(ether_hdr_t) + sizeof(eapol_hdr_t);
+    } else {
+        // What happened?!
         return EAPOL_E_SEND;
     }
+
+    if (write(bpf_fd, send_buf, send_len) == -1) {
+        return EAPOL_E_SEND;
+    }
+
+    // Set EAP type to none
+    recv_pkt->eap_hdr.type = EAP_TYPE_NONE;
 
     return EAPOL_OK;
 }
@@ -118,58 +149,33 @@ static inline int eapol_recv() {
         return EAPOL_E_RECV;
 
     // The receive packet without BPF header
-    pkt = (eapol_pkt_t *) (recv_buf + ((struct bpf_hdr *) recv_buf)->bh_hdrlen);
+    recv_pkt = (eapol_pkt_t *) (recv_buf + ((struct bpf_hdr *) recv_buf)->bh_hdrlen);
 
     return EAPOL_OK;
 }
 
-static inline void eapol_eap_hdr(uint8_t code, uint8_t id, uint16_t length, uint8_t type) {
-    eapol_pkt_t *p = (eapol_pkt_t *) send_buf;
-    p->eap_hdr.code = code;
-    p->eap_hdr.id = id;
-    p->eap_hdr.length = length;
-    p->eap_hdr.type = type;
-}
-
-static inline void eapol_eapol_hdr(uint8_t type, uint16_t length) {
-    eapol_pkt_t *p = (eapol_pkt_t *) send_buf;
-    p->eapol_hdr.version = EAPOL_VERSION;
-    p->eapol_hdr.type = type;
-    p->eapol_hdr.length = length;
-}
-
 int eapol_start() {
-    eapol_eapol_hdr(EAPOL_START, 0);
+    send_pkt->eapol_hdr.type = EAPOL_START;
 
-    return eapol_send(sizeof(ether_hdr_t) + sizeof(eapol_hdr_t));
+    return eapol_send();
 }
 
 int eapol_logoff() {
-    eapol_eapol_hdr(EAPOL_LOGOFF, 0);
+    send_pkt->eapol_hdr.type = EAPOL_LOGOFF;
 
-    return eapol_send(sizeof(ether_hdr_t) + sizeof(eapol_hdr_t));
+    return eapol_send();
 }
 
-static int eapol_send_id(uint8_t id) {
-    uint16_t length = 0;
-    ctx->req->id(send_buf_data, &length);
-    uint16_t nlen = htons(length + sizeof(eap_hdr_t));
-    eapol_eapol_hdr(EAPOL_EAP_PACKET, nlen);
-    eapol_eap_hdr(EAP_RESPONSE, id, nlen, EAP_TYPE_IDENTITY);
-    length += sizeof(eapol_pkt_t);
+static int eapol_send_id() {
+    ctx->req->id(send_buf_data, &send_len);
 
-    return eapol_send(length);
+    return eapol_send();
 }
 
-static inline int eapol_send_md5(uint8_t id) {
-    uint16_t length = 0;
-    ctx->req->md5(id, recv_buf_data, send_buf_data, &length);
-    uint16_t nlen = htons(length + sizeof(eap_hdr_t));
-    eapol_eapol_hdr(EAPOL_EAP_PACKET, nlen);
-    eapol_eap_hdr(EAP_RESPONSE, id, nlen, EAP_TYPE_MD5);
-    length += sizeof(eapol_pkt_t);
+static inline int eapol_send_md5() {
+    ctx->req->md5(recv_pkt->eap_hdr.id, recv_buf_data, send_buf_data, &send_len);
 
-    return eapol_send(length);
+    return eapol_send();
 }
 
 int eapol_dispatcher() {
@@ -177,27 +183,27 @@ int eapol_dispatcher() {
         return EAPOL_E_RECV;
 
     // Ignore non EAPoL ethernet type
-    if (ntohs(pkt->eth_hdr.ether_type) != ETHERTYPE_PAE
-        || memcmp(pkt->eth_hdr.ether_dhost, mac_addr.octet, sizeof(struct ether_addr)) != 0) {
+    if (ntohs(recv_pkt->eth_hdr.ether_type) != ETHERTYPE_PAE
+        || memcmp(recv_pkt->eth_hdr.ether_dhost, mac_addr.octet, sizeof(struct ether_addr)) != 0) {
         return EAPOL_OK;
     }
 
-    if (pkt->eapol_hdr.type != EAPOL_EAP_PACKET)
+    if (recv_pkt->eapol_hdr.type != EAPOL_EAP_PACKET)
         return EAPOL_OK;
 
-    switch (pkt->eap_hdr.code) {
+    switch (recv_pkt->eap_hdr.code) {
         case EAP_REQUEST:
             fprintf(stdout, "EAP Request\n");
 
-            switch (pkt->eap_hdr.type) {
+            switch (recv_pkt->eap_hdr.type) {
                 case EAP_TYPE_IDENTITY:
                     fprintf(stderr, "EAP_TYPE_IDENTITY\n");
-                    printf("EAP Length: %d, : %d\n", pkt->eap_hdr.length, pkt->eap_hdr.id);
-                    return eapol_send_id(pkt->eap_hdr.id);
+                    printf("EAP Length: %d, : %d\n", recv_pkt->eap_hdr.length, recv_pkt->eap_hdr.id);
+                    return eapol_send_id();
 
                 case EAP_TYPE_MD5:
                     fprintf(stderr, "EAP_TYPE_MD5\n");
-                    eapol_send_md5(pkt->eap_hdr.id);
+                    eapol_send_md5();
                     break;
 
                 case EAP_TYPE_H3C:
@@ -205,7 +211,7 @@ int eapol_dispatcher() {
                     break;
 
                 default:
-                    fprintf(stderr, "Unknown EAP request type: %d\n", pkt->eap_hdr.type);
+                    fprintf(stderr, "Unknown EAP request type: %d\n", recv_pkt->eap_hdr.type);
             }
             break;
 
@@ -226,7 +232,7 @@ int eapol_dispatcher() {
             break;
 
         default:
-            fprintf(stderr, "Unknown EAP code: %d\n", pkt->eap_hdr.code);
+            fprintf(stderr, "Unknown EAP code: %d\n", recv_pkt->eap_hdr.code);
     }
 
     return EAPOL_OK;
