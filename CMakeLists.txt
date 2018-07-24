@@ -3,6 +3,12 @@ project(h3c C)
 
 set(CMAKE_C_STANDARD 11)
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    add_definitions(-DOS_DARWIN)
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    add_definitions(-DOS_LINUX)
+endif ()
+
 # Git build version related
 execute_process(
         COMMAND git describe --abbrev=0 --tags

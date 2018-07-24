@@ -1,13 +1,20 @@
-#include <net/if.h>
-#include <net/if_dl.h>
 #include <sys/sysctl.h>
 #include <stdlib.h>
+
+#ifdef OS_DARWIN
+
+#include <net/if.h>
+#include <net/if_dl.h>
+
+#endif
+
 #include <string.h>
 #include "utils.h"
 
 int util_get_mac(const char *interface, u_char *macaddr) {
     size_t length = strlen(interface);
 
+#ifdef OS_DARWIN
     if (length < 1 || length > IFNAMSIZ)
         return UTIL_E_INTERFACE_LENGTH;
 
@@ -33,6 +40,7 @@ int util_get_mac(const char *interface, u_char *macaddr) {
     unsigned char *ptr = (unsigned char *) LLADDR(sdl);
     memcpy(macaddr, ptr, sizeof(struct ether_addr));
     free(buf);
+#endif
 
     return UTIL_OK;
 }

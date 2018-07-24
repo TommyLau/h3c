@@ -1,4 +1,3 @@
-#include <net/bpf.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
@@ -6,6 +5,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#ifdef OS_DARWIN
+
+#include <net/bpf.h>
+
+#endif
+
 #include "eapol.h"
 #include "utils.h"
 
@@ -28,7 +34,9 @@ static int bpf_fd = 0;
 static struct timeval timeout = {30, 0};
 
 // Buffer
+#ifdef OS_DARWIN
 static size_t buf_len = BPF_MAXBUFSIZE;
+#endif
 static uint8_t *send_buf = NULL;
 static uint8_t *recv_buf = NULL;
 
@@ -43,6 +51,7 @@ int eapol_init(eapol_ctx_t *c) {
     else
         ctx = c;
 
+#ifdef OS_DARWIN
     // Init interface and get MAC address
     if (util_get_mac(ctx->interface, mac_addr.octet) != UTIL_OK)
         return EAPOL_E_INIT_INTERFACE;
@@ -96,6 +105,7 @@ int eapol_init(eapol_ctx_t *c) {
     // Packet pointer to send buffer
     send_pkt = (eapol_pkt_t *) send_buf;
     recv_pkt = (eapol_pkt_t *) send_buf;
+#endif
 
     return EAPOL_OK;
 }
@@ -108,6 +118,7 @@ void eapol_cleanup() {
 static int eapol_send() {
     send_pkt->eapol_hdr.version = EAPOL_VERSION;
 
+#ifdef OS_DARWIN
     if (recv_pkt->eap_hdr.type != EAP_TYPE_NONE) {
         uint16_t length = htons(send_len + sizeof(eap_hdr_t));
 
@@ -132,11 +143,13 @@ static int eapol_send() {
 
     // Set EAP type to none
     recv_pkt->eap_hdr.type = EAP_TYPE_NONE;
+#endif
 
     return EAPOL_OK;
 }
 
 static inline int eapol_recv() {
+#ifdef OS_DARWIN
     fd_set readset;
     FD_ZERO(&readset);
     FD_SET(bpf_fd, &readset);
@@ -150,6 +163,7 @@ static inline int eapol_recv() {
 
     // The receive packet without BPF header
     recv_pkt = (eapol_pkt_t *) (recv_buf + ((struct bpf_hdr *) recv_buf)->bh_hdrlen);
+#endif
 
     return EAPOL_OK;
 }
@@ -182,6 +196,7 @@ int eapol_dispatcher() {
     if (eapol_recv() != EAPOL_OK)
         return EAPOL_E_RECV;
 
+#ifdef OS_DARWIN
     // Ignore non EAPoL ethernet type
     if (ntohs(recv_pkt->eth_hdr.ether_type) != ETHERTYPE_PAE
         || memcmp(recv_pkt->eth_hdr.ether_dhost, mac_addr.octet, sizeof(struct ether_addr)) != 0) {
@@ -234,6 +249,7 @@ int eapol_dispatcher() {
                 return ctx->unknown();
             return EAPOL_E_UNKNOWN_EAP_CODE;
     }
+#endif
 
     return EAPOL_OK;
 }
