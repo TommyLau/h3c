@@ -4,14 +4,7 @@ os:
   - osx
   - linux
 
-addons:
-  apt:
-    packages:
-      cmake
-
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update                              ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew outdated cmake || brew upgrade cmake; fi
   - cmake --version
 
 script:
