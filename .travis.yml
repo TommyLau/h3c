@@ -1,9 +1,18 @@
 language: c
-os: osx
+
+os:
+  - osx
+  - linux
+
+addons:
+  apt:
+    packages:
+      cmake
+
 before_install:
-  - brew update
-  - brew outdated cmake || brew upgrade cmake
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update                              ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew outdated cmake || brew upgrade cmake; fi
   - cmake --version
+
 script:
-  - cmake -DCMAKE_BUILD_TYPE=Release
-  - make
+  - cmake -DCMAKE_BUILD_TYPE=Release && make
