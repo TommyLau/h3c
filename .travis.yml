@@ -1,0 +1,5 @@
+language: c
+os: osx
+script:
+- cmake -DCMAKE_BUILD_TYPE=Release
+- make
