@@ -1,6 +1,9 @@
+#include <sys/stat.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
+#include <unistd.h>
 #include "eapol.h"
 #include "h3c.h"
 #include "md5.h"
@@ -40,6 +43,7 @@ static eapol_ctx_t ec = {0};
 const char *h3c_desc(int code) {
     return H3C_DESC[code].message;
 }
+
 
 static int h3c_eap_response() {
     ctx->output(H3C_S_EAP_RESPONSE);
@@ -142,4 +146,37 @@ void h3c_run() {
             exit(EXIT_FAILURE);
         }
     }
+}
+
+void h3c_daemon() {
+    if (getpid() == 1)
+        return;
+
+    pid_t pid = fork();
+
+    if (pid < 0)
+        exit(EXIT_FAILURE);
+
+    if (pid > 0)
+        exit(EXIT_SUCCESS);
+
+    umask(0);
+    openlog("h3c", LOG_CONS, LOG_USER);
+    pid_t sid = setsid();
+
+    if (sid < 0)
+        exit(EXIT_FAILURE);
+
+    if ((chdir("/")) < 0)
+        exit(EXIT_FAILURE);
+
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+    signal(SIGCHLD, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
+    signal(SIGTTOU, SIG_IGN);
+    signal(SIGTTIN, SIG_IGN);
+    h3c_run();
+    exit(EXIT_SUCCESS);
 }

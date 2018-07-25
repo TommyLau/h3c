@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
 #include <unistd.h>
 #include "h3c.h"
 
@@ -20,8 +21,13 @@ static bool color = false;
 // MD5 Challenge with MD5
 static bool md5 = true;
 
+// Daemon
+static bool detach = false;
+
 static void print(int stat) {
-    if (color)
+    if (detach)
+        syslog(LOG_INFO, "%s\n", h3c_desc(stat));
+    else if (color)
         fprintf(stdout, "\033[22;%dm%s\n\033[0m", 31 + ((stat - 1) % 8), h3c_desc(stat));
     else
         fprintf(stdout, "%s\n", h3c_desc(stat));
@@ -39,6 +45,7 @@ int main(int argc, char *argv[]) {
             {"interface", optional_argument, NULL, 'i'},
             {"method",    optional_argument, NULL, 'm'},
             {"color",     no_argument,       NULL, 'c'},
+            {"detach",    no_argument,       NULL, 'd'},
             {NULL, 0,                        NULL, 0}
     };
 
@@ -47,7 +54,7 @@ int main(int argc, char *argv[]) {
     char *username = NULL;
     char *password = NULL;
 
-    while ((c = getopt_long(argc, argv, "hu:p:i:m:c", options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "hu:p:i:m:cd", options, NULL)) != -1) {
         switch (c) {
             case 'h':
                 fprintf(stdout,
@@ -58,6 +65,7 @@ int main(int argc, char *argv[]) {
                         "-i, --interface     Network interface (Default: en0)\n"
                         "-m, --method        EAP-MD5 CHAP Method [md5 / xor] (Default: md5)\n"
                         "-c, --color         Enable colorized output\n"
+                        "-d, --detach        Run program in background mode\n"
                         "\n"
                 );
                 return EXIT_SUCCESS;
@@ -89,6 +97,10 @@ int main(int argc, char *argv[]) {
                 color = true;
                 break;
 
+            case 'd':
+                detach = true;
+                break;
+
             default:
                 fprintf(stderr, "Invalid arguments.\n");
                 return EXIT_FAILURE;
@@ -118,7 +130,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    h3c_ctx_t hc = {interface, username, password, print};
+    h3c_ctx_t hc = {interface, username, password, md5, print};
 
     int ret = 0;
 
@@ -127,7 +139,10 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    h3c_run();
+    if (detach)
+        h3c_daemon();
+    else
+        h3c_run();
 
     return EXIT_SUCCESS;
 }

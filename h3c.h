@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include "eapol.h"
 
 enum {
@@ -25,6 +26,7 @@ struct h3c_ctx {
     const char *interface;
     const char *username;
     const char *password;
+    bool md5;
     h3c_output_cb_t *output;
 };
 
@@ -37,3 +39,5 @@ int h3c_init(h3c_ctx_t *c);
 void h3c_cleanup();
 
 void h3c_run();
+
+void h3c_daemon();
