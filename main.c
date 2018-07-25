@@ -22,7 +22,7 @@ static bool md5 = true;
 
 static void print(int stat) {
     if (color)
-        fprintf(stdout, "\033[22;%dm%s\n\033[0m", 30 + stat, h3c_desc(stat));
+        fprintf(stdout, "\033[22;%dm%s\n\033[0m", 31 + ((stat - 1) % 8), h3c_desc(stat));
     else
         fprintf(stdout, "%s\n", h3c_desc(stat));
 }

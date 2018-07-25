@@ -209,12 +209,11 @@ static inline int eapol_recv() {
     recv_pkt = (eapol_pkt_t *) (recv_buf + ((struct bpf_hdr *) recv_buf)->bh_hdrlen);
 #elif OS_LINUX
     socklen_t len = sizeof(sock_addr);
-    int l;
 
-    if ((l = recvfrom(fd, recv_buf, buf_len, 0, (struct sockaddr *) &sock_addr, &len)) <= 0)
+    if (recvfrom(fd, recv_buf, buf_len, 0, (struct sockaddr *) &sock_addr, &len) <= 0)
         return EAPOL_E_RECV;
 
-    recv_pkt = (eapol_pkt_t *) (recv_buf + sizeof(ether_hdr_t));
+    recv_pkt = (eapol_pkt_t *) recv_buf;
 #endif
 
     return EAPOL_OK;
@@ -248,10 +247,9 @@ int eapol_dispatcher() {
     if (eapol_recv() != EAPOL_OK)
         return EAPOL_E_RECV;
 
-#ifdef OS_DARWIN
     // Ignore non EAPoL ethernet type
-    if (ntohs(recv_pkt->eth_hdr.ether_type) != ETHERTYPE_PAE
-        || memcmp(recv_pkt->eth_hdr.ether_dhost, mac_addr.octet, sizeof(struct ether_addr)) != 0) {
+    if (ntohs(recv_pkt->eth_hdr.ether_type) != EAPOL_ETH_P_PAE
+        || memcmp(recv_pkt->eth_hdr.ether_dhost, &mac_addr, sizeof(struct ether_addr)) != 0) {
         return EAPOL_OK;
     }
 
@@ -301,7 +299,6 @@ int eapol_dispatcher() {
                 return ctx->unknown();
             return EAPOL_E_UNKNOWN_EAP_CODE;
     }
-#endif
 
     return EAPOL_OK;
 }
