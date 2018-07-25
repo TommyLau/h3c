@@ -51,11 +51,11 @@ int eapol_init(eapol_ctx_t *c) {
     else
         ctx = c;
 
-#ifdef OS_DARWIN
     // Init interface and get MAC address
-    if (util_get_mac(ctx->interface, mac_addr.octet) != UTIL_OK)
+    if (util_get_mac(ctx->interface, (uint8_t *) &mac_addr) != UTIL_OK)
         return EAPOL_E_INIT_INTERFACE;
 
+#ifdef OS_DARWIN
     char bpf_str[32] = {0};
     char bpf_path[FILENAME_MAX] = {0};
 
