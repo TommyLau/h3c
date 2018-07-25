@@ -12,6 +12,7 @@
 
 #elif OS_LINUX
 
+#include <linux/if_packet.h>
 #include <netinet/in.h>
 
 #endif
@@ -39,11 +40,18 @@ eapol_ctx_t *ctx = NULL;
 // MAC Addresses
 static struct ether_addr mac_addr = {0};
 
-// BPF Handler
+#ifdef OS_LINUX
+// Socket Address
+static struct sockaddr_ll sock_addr = {0};
+#endif
+
+// Handler
 static int fd = 0;
 
+#ifdef OS_DARWIN
 // Timeout 30 seconds
 static struct timeval timeout = {30, 0};
+#endif
 
 // Buffer
 static size_t buf_len = EAPOL_BUF_LEN;
@@ -104,11 +112,17 @@ int eapol_init(eapol_ctx_t *c) {
         return EAPOL_E_IOCTL;
     }
 #elif OS_LINUX
-    if (ioctl(fd, SIOCGIFFLAGS, &ifr) < 0)
+    if (ioctl(fd, SIOCGIFFLAGS, &ifr) < 0
+        || !(ifr.ifr_flags & IFF_UP)
+        || ioctl(fd, SIOCGIFINDEX, &ifr) < 0)
         return EAPOL_E_IOCTL;
 
-    if (!(ifr.ifr_flags & IFF_UP))
-        return EAPOL_E_INIT_INTERFACE;
+    sock_addr.sll_family = AF_PACKET;
+    sock_addr.sll_ifindex = ifr.ifr_ifindex;
+    sock_addr.sll_protocol = htons(EAPOL_ETH_P_PAE);
+
+    if (bind(fd, (struct sockaddr *) &sock_addr, sizeof(sock_addr)) == -1)
+        return EAPOL_E_BIND;
 #endif
 
     if ((send_buf = malloc(buf_len)) == NULL)
@@ -146,7 +160,6 @@ void eapol_cleanup() {
 static int eapol_send() {
     send_pkt->eapol_hdr.version = EAPOL_VERSION;
 
-#ifdef OS_DARWIN
     if (recv_pkt->eap_hdr.type != EAP_TYPE_NONE) {
         uint16_t length = htons(send_len + sizeof(eap_hdr_t));
 
@@ -165,13 +178,16 @@ static int eapol_send() {
         return EAPOL_E_SEND;
     }
 
-    if (write(fd, send_buf, send_len) == -1) {
+#ifdef OS_DARWIN
+    if (write(fd, send_buf, send_len) == -1)
         return EAPOL_E_SEND;
-    }
+#elif OS_LINUX
+    if (sendto(fd, send_buf, send_len, MSG_NOSIGNAL, (struct sockaddr *) &sock_addr, sizeof(sock_addr)) == -1)
+        return EAPOL_E_SEND;
+#endif
 
     // Set EAP type to none
     recv_pkt->eap_hdr.type = EAP_TYPE_NONE;
-#endif
 
     return EAPOL_OK;
 }
@@ -191,6 +207,14 @@ static inline int eapol_recv() {
 
     // The receive packet without BPF header
     recv_pkt = (eapol_pkt_t *) (recv_buf + ((struct bpf_hdr *) recv_buf)->bh_hdrlen);
+#elif OS_LINUX
+    socklen_t len = sizeof(sock_addr);
+    int l;
+
+    if ((l = recvfrom(fd, recv_buf, buf_len, 0, (struct sockaddr *) &sock_addr, &len)) <= 0)
+        return EAPOL_E_RECV;
+
+    recv_pkt = (eapol_pkt_t *) (recv_buf + sizeof(ether_hdr_t));
 #endif
 
     return EAPOL_OK;
