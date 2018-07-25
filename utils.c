@@ -49,6 +49,7 @@ int util_get_mac(const char *interface, u_char *macaddr) {
 #elif OS_LINUX
     int sock = 0;
     struct ifreq ifr = {0};
+
     strncpy(ifr.ifr_name, interface, sizeof(ifr.ifr_name));
 
     if ((sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0)
@@ -58,6 +59,8 @@ int util_get_mac(const char *interface, u_char *macaddr) {
         return UTIL_E_IOCTL;
 
     memcpy(macaddr, ifr.ifr_hwaddr.sa_data, sizeof(struct ether_addr));
+
+    shutdown(sock, SHUT_RDWR);
 #endif
 
     return UTIL_OK;
