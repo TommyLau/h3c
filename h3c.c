@@ -53,7 +53,7 @@ static int h3c_eap_success() {
 
 static int h3c_eap_failure() {
     ctx->output(H3C_S_EAP_FAILURE);
-    return EAPOL_OK;
+    return EAPOL_E_AUTH_FAILURE;
 }
 
 static int h3c_eap_unknown() {
@@ -139,7 +139,6 @@ void h3c_run() {
 
     while (1) {
         if (eapol_dispatcher() != EAPOL_OK) {
-            ctx->output(H3C_E_EAPOL_RESPONSE);
             exit(EXIT_FAILURE);
         }
     }

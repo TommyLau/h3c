@@ -7,6 +7,8 @@ enum {
     UTIL_OK = 0,
     UTIL_E_INTERFACE_LENGTH,
     UTIL_E_NAME_TO_INDEX,
+    UTIL_E_SOCKET,
+    UTIL_E_IOCTL,
     UTIL_E_SYSCTL_1,
     UTIL_E_SYSCTL_2
 };
