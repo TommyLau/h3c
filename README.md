@@ -25,7 +25,7 @@ If there's no password provided with the CLI, the program will prompt for the pa
 
 ## TODO
 
-- [ ] Implement daemon method
+- [x] Implement daemon method
 - [ ] Implement MD5-Challenge (XOR)
 - [ ] Implement H3C-Challenge
 - [x] Port to Linux (Ubuntu 18.04 LTS) platform
